@@ -141,8 +141,14 @@ export default function ManageTeamsPage() {
     if (!event) return;
     const updatedTeams = event.teams.map(t => {
       if (t.teamId === team.teamId) {
-        const newPlayers = t.players ? [...t.players, player] : [player];
-        return { ...t, players: newPlayers };
+        // Ensure players array exists before spreading
+        const currentPlayers = t.players || [];
+        // Check if player already exists
+        if (currentPlayers.some(p => p.userId === player.userId)) {
+          toast({ variant: 'destructive', title: 'Player already in team' });
+          return t;
+        }
+        return { ...t, players: [...currentPlayers, player] };
       }
       return t;
     });
@@ -170,7 +176,7 @@ export default function ManageTeamsPage() {
   const availablePlayersForSelectedTeam = useMemo(() => {
     if (!selectedTeam) return [];
     return approvedUsers.filter(u => 
-      !assignedPlayerIds.has(u.userId) && u.dept === selectedTeam.department
+      u.dept === selectedTeam.department && !assignedPlayerIds.has(u.userId)
     );
   }, [selectedTeam, approvedUsers, assignedPlayerIds]);
 
@@ -191,15 +197,15 @@ export default function ManageTeamsPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {event?.teams?.map(team => (
           <Card key={team.teamId} className="flex flex-col">
             <CardHeader className='flex-row items-start justify-between'>
-              <div>
-                <CardTitle>{team.teamName}</CardTitle>
-                <p className="text-sm text-muted-foreground">{team.department}</p>
+              <div className="overflow-hidden">
+                <CardTitle className="truncate">{team.teamName}</CardTitle>
+                <p className="text-sm text-muted-foreground truncate">{team.department}</p>
               </div>
-               <div className="flex items-center gap-1">
+               <div className="flex items-center gap-1 flex-shrink-0">
                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleAddPlayers(team)}>
                     <UserPlus className="h-4 w-4" />
                  </Button>
@@ -213,14 +219,14 @@ export default function ManageTeamsPage() {
                     <div className="space-y-3">
                         {team.players.map(player => (
                             <div key={player.userId} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 overflow-hidden">
                                     <Avatar className="h-6 w-6">
                                         {player.photoURL && <AvatarImage src={player.photoURL} />}
                                         <AvatarFallback>{player.displayName.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    <span>{player.displayName}</span>
+                                    <span className="truncate">{player.displayName}</span>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemovePlayerFromTeam(team, player)}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => handleRemovePlayerFromTeam(team, player)}>
                                     <X className="h-3 w-3" />
                                 </Button>
                             </div>
@@ -290,14 +296,14 @@ export default function ManageTeamsPage() {
                 <div className="space-y-2 pr-4">
                     {availablePlayersForSelectedTeam.length > 0 ? availablePlayersForSelectedTeam.map(player => (
                         <div key={player.userId} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 overflow-hidden">
                                 <Avatar className="h-8 w-8">
                                     {player.photoURL && <AvatarImage src={player.photoURL} />}
                                     <AvatarFallback>{player.displayName.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="font-medium text-sm">{player.displayName}</p>
-                                    <p className="text-xs text-muted-foreground">{player.dept}</p>
+                                    <p className="font-medium text-sm truncate">{player.displayName}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{player.dept}</p>
                                 </div>
                             </div>
                             <Button size="sm" onClick={() => handleAddPlayerToTeam(selectedTeam!, player)}>Add</Button>
