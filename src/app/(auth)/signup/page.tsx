@@ -212,7 +212,7 @@ export default function SignupPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-confirm-password">Confirm Password</Label>
-                <Input id="student-confirm-password" type="password" required value={studentConfirmPassword} onChange={e => setStudentConfirm-password(e.target.value)} disabled={loading} />
+                <Input id="student-confirm-password" type="password" required value={studentConfirmPassword} onChange={e => setStudentConfirmPassword(e.target.value)} disabled={loading} />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Creating Account...' : 'Create student account'}
