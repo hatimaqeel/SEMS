@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -165,10 +165,14 @@ export default function ManageTeamsPage() {
 
   const isLoading = isLoadingEvent || isLoadingJoinRequests || isLoadingUsers || isLoadingDepts;
   
-  const assignedPlayerIds = new Set(event?.teams?.flatMap(t => t.players?.map(p => p.userId) || []) || []);
-  const availablePlayersForSelectedTeam = approvedUsers.filter(u => 
-    !assignedPlayerIds.has(u.userId) && u.dept === selectedTeam?.department
-  );
+  const assignedPlayerIds = useMemo(() => new Set(event?.teams?.flatMap(t => t.players?.map(p => p.userId) || []) || []), [event?.teams]);
+  
+  const availablePlayersForSelectedTeam = useMemo(() => {
+    if (!selectedTeam) return [];
+    return approvedUsers.filter(u => 
+      !assignedPlayerIds.has(u.userId) && u.dept === selectedTeam.department
+    );
+  }, [selectedTeam, approvedUsers, assignedPlayerIds]);
 
 
   if (isLoading) {
@@ -189,8 +193,8 @@ export default function ManageTeamsPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {event?.teams?.map(team => (
-          <Card key={team.teamId}>
-            <CardHeader className='flex-row items-center justify-between'>
+          <Card key={team.teamId} className="flex flex-col">
+            <CardHeader className='flex-row items-start justify-between'>
               <div>
                 <CardTitle>{team.teamName}</CardTitle>
                 <p className="text-sm text-muted-foreground">{team.department}</p>
@@ -204,7 +208,7 @@ export default function ManageTeamsPage() {
                 </Button>
                </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                 {team.players && team.players.length > 0 ? (
                     <div className="space-y-3">
                         {team.players.map(player => (
@@ -257,9 +261,9 @@ export default function ManageTeamsPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="team-dept">Department</Label>
-               <Select onValueChange={setTeamDepartment} value={teamDepartment} disabled={isSubmitting}>
+               <Select onValueChange={setTeamDepartment} value={teamDepartment} disabled={isSubmitting || isLoadingDepts}>
                   <SelectTrigger id="team-dept">
-                    <SelectValue placeholder="Select a department" />
+                    <SelectValue placeholder={isLoadingDepts ? "Loading..." : "Select a department"} />
                   </SelectTrigger>
                   <SelectContent>
                     {departments?.map(dept => (
