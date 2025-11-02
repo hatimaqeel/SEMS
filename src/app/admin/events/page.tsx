@@ -115,7 +115,6 @@ export default function EventsPage() {
       settings: { format: 'knockout' as const, restMinutes: 30, allowSameDeptMatches: false }, // Default values
       teams: selectedEvent?.teams || [],
       matches: selectedEvent?.matches || [],
-      joinRequests: selectedEvent?.joinRequests || [],
     };
     
     try {
@@ -181,7 +180,6 @@ export default function EventsPage() {
                 <TableHead>Sport</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Join Requests</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -190,7 +188,7 @@ export default function EventsPage() {
             <TableBody>
               {isLoadingEvents && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">Loading events...</TableCell>
+                  <TableCell colSpan={5} className="text-center">Loading events...</TableCell>
                 </TableRow>
               )}
               {events && events.map((event) => (
@@ -201,7 +199,6 @@ export default function EventsPage() {
                   <TableCell>
                     <Badge variant={statusVariant(event.status)}>{event.status}</Badge>
                   </TableCell>
-                  <TableCell>{event.joinRequests?.length || 0}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

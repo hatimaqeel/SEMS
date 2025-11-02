@@ -46,7 +46,6 @@ export type Event = {
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   teams: Team[];
   matches: Match[];
-  joinRequests: JoinRequest[];
 };
 
 export type Team = {
@@ -84,6 +83,7 @@ export type User = {
 };
 
 export type JoinRequest = {
+  id?: string; // Doc ID is the user ID
   userId: string;
   userName: string;
   userDept: string;

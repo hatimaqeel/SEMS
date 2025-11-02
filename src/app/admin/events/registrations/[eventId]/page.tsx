@@ -1,11 +1,10 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import type { Event, JoinRequest } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -25,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Check, X, Loader } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { Button } from '@/components/ui/button';
 
 export default function EventRegistrationsPage() {
   const { eventId } = useParams() as { eventId: string };
@@ -37,18 +38,29 @@ export default function EventRegistrationsPage() {
   );
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
 
+  const joinRequestsRef = useMemoFirebase(
+    () => collection(firestore, 'events', eventId, 'joinRequests'),
+    [firestore, eventId]
+  );
+  const {
+    data: joinRequests,
+    isLoading: isLoadingJoinRequests,
+  } = useCollection<JoinRequest>(joinRequestsRef);
+
   const handleRequestStatusChange = async (
     userId: string,
     newStatus: 'approved' | 'rejected'
   ) => {
     if (!event) return;
 
-    const updatedRequests = event.joinRequests.map((req) =>
-      req.userId === userId ? { ...req, status: newStatus } : req
+    const requestDocRef = doc(
+      firestore,
+      'events',
+      eventId,
+      'joinRequests',
+      userId
     );
-
-    const eventDocRef = doc(firestore, 'events', eventId);
-    updateDocumentNonBlocking(eventDocRef, { joinRequests: updatedRequests });
+    updateDocumentNonBlocking(requestDocRef, { status: newStatus });
 
     toast({
       title: `Request ${newStatus}`,
@@ -70,11 +82,13 @@ export default function EventRegistrationsPage() {
   };
 
   const pendingRequests =
-    event?.joinRequests?.filter((r) => r.status === 'pending') || [];
+    joinRequests?.filter((r) => r.status === 'pending') || [];
   const reviewedRequests =
-    event?.joinRequests?.filter((r) => r.status !== 'pending') || [];
+    joinRequests?.filter((r) => r.status !== 'pending') || [];
+    
+  const isLoading = isLoadingEvent || isLoadingJoinRequests;
 
-  if (isLoadingEvent) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader className="animate-spin" /> Loading registrations...

@@ -23,7 +23,7 @@
  * - Sports: Public read, admin write.
  * - Venues: Public read, admin write.
  * - Departments: Public read, admin write.
- * - Events: Public read, admin write for most fields. Students can add themselves to join requests.
+ * - Events: Public read, admin write. Students can create their own join request.
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
  * - Users: Owner-only access.
@@ -60,7 +60,7 @@ service cloud.firestore {
     /**
      * @description Grants public read access to department data. Write access is for admins.
      * @path /departments/{departmentId}
-     * @allow (get, list): Any user can read department data.
+     * @allow (get, list): if true;
      * @allow (create, update, delete): if isAdmin();
      */
     match /departments/{departmentId} {
@@ -70,20 +70,29 @@ service cloud.firestore {
 
     /**
      * @description Grants public read access to event data. Admins have full write access.
-     * Students can update the joinRequests array to add themselves.
      * @path /events/{eventId}
      * @allow (get, list): Any user can read event data.
-     * @allow (create, delete): Admins can create and delete events.
-     * @allow (update): Admins can update any field. Signed-in users can update only the 'joinRequests' field.
-     * @principle Public read, admin write, specific field update for users.
+     * @allow (create, update, delete): Admins can manage events.
+     * @principle Public read, admin write.
      */
     match /events/{eventId} {
       allow get, list: if true;
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        isSignedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joinRequests'])
-      );
+      allow create, update, delete: if isAdmin();
+
+      /**
+       * @description Handles join requests for an event.
+       * @path /events/{eventId}/joinRequests/{userId}
+       * @allow (read, list): Admins can read all join requests.
+       * @allow (create): A signed-in user can create a join request for themselves.
+       * @allow (update): An admin can update the status of any join request.
+       * @principle Segregated writes, admin management.
+       */
+      match /joinRequests/{userId} {
+        allow get, list: if isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isAdmin();
+        allow delete: if false;
+      }
     }
 
     /**

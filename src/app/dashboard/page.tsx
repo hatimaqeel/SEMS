@@ -1,6 +1,6 @@
 'use client';
 
-import { arrayUnion, collection, doc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import {
   ArrowRight,
   Calendar,
@@ -18,8 +18,8 @@ import {
   useMemoFirebase,
   useUser,
 } from '@/firebase';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { Event, User } from '@/lib/types';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import type { Event, User, JoinRequest } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useEffect, useState } from 'react';
 
 export default function StudentDashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -48,6 +49,32 @@ export default function StudentDashboardPage() {
   const eventsRef = useMemoFirebase(() => collection(firestore, 'events'), [firestore]);
   const { data: events, isLoading: isLoadingEvents } = useCollection<Event>(eventsRef);
 
+  const [myRequestsByEvent, setMyRequestsByEvent] = useState<Record<string, JoinRequest | null>>({});
+  const [isLoadingMyRequests, setIsLoadingMyRequests] = useState(true);
+
+  useEffect(() => {
+    if (!user || !events) return;
+
+    const fetchAllRequests = async () => {
+      setIsLoadingMyRequests(true);
+      const requests: Record<string, JoinRequest | null> = {};
+      const requestPromises = events.map(async (event) => {
+        const requestRef = doc(firestore, 'events', event.id!, 'joinRequests', user.uid);
+        const requestSnap = await doc(requestRef).get();
+        if (requestSnap.exists()) {
+          requests[event.id!] = requestSnap.data() as JoinRequest;
+        } else {
+          requests[event.id!] = null;
+        }
+      });
+      await Promise.all(requestPromises);
+      setMyRequestsByEvent(requests);
+      setIsLoadingMyRequests(false);
+    };
+
+    fetchAllRequests();
+  }, [user, events, firestore]);
+
   const handleRequestToJoin = async (event: Event) => {
     if (!user || !userData) {
       toast({
@@ -58,16 +85,17 @@ export default function StudentDashboardPage() {
       return;
     }
 
-    const eventDocRef = doc(firestore, 'events', event.id!);
-    const newRequest = {
+    const joinRequestRef = doc(firestore, 'events', event.id!, 'joinRequests', user.uid);
+    const newRequest: JoinRequest = {
       userId: user.uid,
       userName: userData.displayName,
       userDept: userData.dept,
       status: 'pending' as const,
     };
-    updateDocumentNonBlocking(eventDocRef, {
-      joinRequests: arrayUnion(newRequest),
-    });
+    setDocumentNonBlocking(joinRequestRef, newRequest, {});
+
+    // Optimistically update local state
+    setMyRequestsByEvent(prev => ({ ...prev, [event.id!]: newRequest }));
 
     toast({
       title: 'Request Sent',
@@ -75,7 +103,7 @@ export default function StudentDashboardPage() {
     });
   };
 
-  const isLoading = isUserLoading || isUserDataLoading || isLoadingEvents;
+  const isLoading = isUserLoading || isUserDataLoading || isLoadingEvents || isLoadingMyRequests;
 
   if (isLoading) {
     return (
@@ -97,12 +125,9 @@ export default function StudentDashboardPage() {
   }
 
   const upcomingEvents = events?.filter((e) => e.status === 'upcoming') || [];
-  const myRequests = upcomingEvents.filter((e) =>
-    e.joinRequests?.some((r) => r.userId === user?.uid)
-  );
-  const availableEvents = upcomingEvents.filter(
-    (e) => !myRequests.some((mr) => mr.id === e.id)
-  );
+  
+  const myRequestEvents = upcomingEvents.filter(event => myRequestsByEvent[event.id!]);
+  const availableEvents = upcomingEvents.filter(event => !myRequestsByEvent[event.id!]);
 
   const getStatusUi = (status: 'pending' | 'approved' | 'rejected') => {
     switch (status) {
@@ -180,10 +205,11 @@ export default function StudentDashboardPage() {
       <div className="md:col-span-8 lg:col-span-9 space-y-12">
         <section>
           <h2 className="text-3xl font-bold tracking-tight font-headline mb-6">My Registrations</h2>
-          {myRequests.length > 0 ? (
+          {myRequestEvents.length > 0 ? (
             <div className="space-y-4">
-              {myRequests.map((event) => {
-                const request = event.joinRequests.find((r) => r.userId === user?.uid)!;
+              {myRequestEvents.map((event) => {
+                const request = myRequestsByEvent[event.id!];
+                if (!request) return null;
                 const statusInfo = getStatusUi(request.status);
                 return (
                   <Card key={event.id} className="transition-all hover:shadow-md">
@@ -215,7 +241,6 @@ export default function StudentDashboardPage() {
             <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
               {availableEvents.map((event) => {
                 const isDeptMatch = event.department === 'All Departments' || event.department === userData.dept;
-                const hasAlreadyRequested = event.joinRequests?.some(req => req.userId === user?.uid);
                 
                 return (
                   <Card key={event.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
@@ -237,11 +262,11 @@ export default function StudentDashboardPage() {
                     <CardFooter className="flex-col items-stretch p-4">
                       <Button
                         className="w-full"
-                        disabled={!isDeptMatch || hasAlreadyRequested}
+                        disabled={!isDeptMatch}
                         onClick={() => handleRequestToJoin(event)}
                       >
                         Request to Join
-                        {!hasAlreadyRequested && <ArrowRight className="ml-2 h-4 w-4" />}
+                        <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                       {!isDeptMatch && (
                         <p className="text-xs text-center text-red-500/80 pt-2">

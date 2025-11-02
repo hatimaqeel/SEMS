@@ -326,6 +326,36 @@
         "message",
         "timestamp"
       ]
+    },
+    "JoinRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "JoinRequest",
+      "type": "object",
+      "description": "Represents a student's request to join an event.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user requesting to join."
+        },
+        "userName": {
+          "type": "string",
+          "description": "The name of the user."
+        },
+        "userDept": {
+          "type": "string",
+          "description": "The department of the user."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the join request (pending, approved, rejected)."
+        }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "userDept",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -472,6 +502,26 @@
             {
               "name": "logId",
               "description": "Unique identifier for the log entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/joinRequests/{userId}",
+        "definition": {
+          "entityName": "JoinRequest",
+          "schema": {
+            "$ref": "#/backend/entities/JoinRequest"
+          },
+          "description": "Stores join requests from students for a specific event. The document ID is the user's ID.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for the event."
+            },
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user submitting the request."
             }
           ]
         }
