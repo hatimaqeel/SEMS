@@ -13,14 +13,14 @@
  *
  * Key Security Decisions:
  * - Users can read and write their own profile data.
+ * - Admins can create, update, and delete sports, venues, and events.
  * - All sports, venues and events are publicly readable.
- * - Creation, modification, and deletion of sports, venues, and events is not supported and therefore denied.
  * - Teams and Matches are scoped to specific events. Creation, modification, and deletion of teams and matches is not supported and therefore denied.
  *
  * Access Control Patterns:
- * - Sports: Public read-only.
- * - Venues: Public read-only.
- * - Events: Public read-only.
+ * - Sports: Public read, admin write.
+ * - Venues: Public read, admin write.
+ * - Events: Public read, admin write.
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
  * - Users: Owner-only access.
@@ -31,39 +31,39 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants public read access to sports data. Write access is denied.
+     * @description Grants public read access to sports data. Write access is for admins.
      * @path /sports/{sportId}
      * @allow (get, list): Any user can read sport data.
-     * @deny (create, update, delete): No user can create, update, or delete sport data.
-     * @principle Public read-only access.
+     * @allow (create, update, delete): Admins can manage sports data.
+     * @principle Public read, admin write.
      */
     match /sports/{sportId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Grants public read access to venue data. Write access is denied.
+     * @description Grants public read access to venue data. Write access is for admins.
      * @path /venues/{venueId}
      * @allow (get, list): Any user can read venue data.
-     * @deny (create, update, delete): No user can create, update, or delete venue data.
-     * @principle Public read-only access.
+     * @allow (create, update, delete): Admins can manage venue data.
+     * @principle Public read, admin write.
      */
     match /venues/{venueId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Grants public read access to event data. Write access is denied.
+     * @description Grants public read access to event data. Write access is for admins.
      * @path /events/{eventId}
      * @allow (get, list): Any user can read event data.
-     * @deny (create, update, delete): No user can create, update, or delete event data.
-     * @principle Public read-only access.
+     * @allow (create, update, delete): Admins can manage event data.
+     * @principle Public read, admin write.
      */
     match /events/{eventId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
@@ -93,13 +93,14 @@ service cloud.firestore {
     /**
      * @description Grants owner-only access to user profile data.
      * @path /users/{userId}
-     * @allow (get, list, create): User can read and create their own profile.
+     * @allow (read): User can read their own profile.
+     * @allow (create): A newly signed up user can create their own profile.
      * @allow (update, delete): User can update/delete their own profile if it exists.
      * @principle Enforces document ownership.
      */
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isOwner(userId);
       allow update, delete: if isExistingOwner(userId);
     }
 
@@ -126,6 +127,14 @@ service cloud.firestore {
 
     function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
     }
   }
 }

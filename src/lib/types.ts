@@ -19,10 +19,13 @@ export type Venue = {
 
 export type Event = {
   eventId: string;
-  name: string;
+  name:string;
   sportType: string;
   department: string;
+  venueId: string;
   startDate: string;
+  startTime: string;
+  description: string;
   durationDays: number;
   settings: {
     format: 'round-robin' | 'knockout';
