@@ -1,11 +1,11 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import type { Event, Bracket as BracketType, Match, Team } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { doc, updateDoc, collection } from 'firebase/firestore';
+import type { Event, Bracket as BracketType, Match, Team, Venue, Sport } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { Loader } from 'lucide-react';
+import { Loader, Calendar, Clock } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useState }from 'react';
+import { optimizeScheduleWithAI } from '@/ai/flows/optimize-schedule-with-ai';
 
 type BracketMatch = Match & {
   teamA?: Team;
@@ -38,16 +39,28 @@ const BracketMatch = ({ match, onSelectWinner }: { match: BracketMatch, onSelect
   const isComplete = match.status === 'completed';
 
   return (
-    <div className="flex flex-col gap-2 p-3 bg-card border rounded-lg shadow-sm w-48 min-h-[100px] justify-center">
-      <div className={cn("flex items-center justify-between p-2 rounded", winner && winner.teamId === match.teamA?.teamId && 'bg-green-500/20')}>
+    <div className="flex flex-col gap-2 p-3 bg-card border rounded-lg shadow-sm w-64 min-h-[100px] justify-center">
+       <div className={cn("flex items-center justify-between p-2 rounded", winner && winner.teamId === match.teamA?.teamId && 'bg-green-500/20')}>
         <span className="text-sm font-medium truncate">{match.teamA?.teamName || 'TBD'}</span>
         {match.teamA && !isComplete && <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onSelectWinner(match, match.teamA!)}>Win</Button>}
       </div>
       <div className="h-px bg-border" />
-      <div className={cn("flex items-center justify-between p-2 rounded", winner && winner.teamId === match.teamB?.teamId && 'bg-green-500/20')}>
+       <div className={cn("flex items-center justify-between p-2 rounded", winner && winner.teamId === match.teamB?.teamId && 'bg-green-500/20')}>
         <span className="text-sm font-medium truncate">{match.teamB?.teamName || 'TBD'}</span>
         {match.teamB && !isComplete && <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onSelectWinner(match, match.teamB!)}>Win</Button>}
       </div>
+       {match.startTime && (
+        <div className="border-t mt-2 pt-2 text-xs text-muted-foreground">
+             <div className="flex items-center">
+                <Calendar className="mr-1.5 h-3 w-3" />
+                {new Date(match.startTime).toLocaleDateString()}
+            </div>
+             <div className="flex items-center">
+                <Clock className="mr-1.5 h-3 w-3" />
+                {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -80,17 +93,17 @@ export default function BracketPage() {
   const [selectedMatch, setSelectedMatch] = useState<{match: BracketMatch, winner: Team} | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const eventRef = useMemoFirebase(
-    () => doc(firestore, 'events', eventId),
-    [firestore, eventId]
-  );
+  const eventRef = useMemoFirebase(() => doc(firestore, 'events', eventId), [firestore, eventId]);
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
   
-  const bracketRef = useMemoFirebase(
-    () => doc(firestore, 'brackets', eventId),
-    [firestore, eventId]
-  );
+  const bracketRef = useMemoFirebase(() => doc(firestore, 'brackets', eventId), [firestore, eventId]);
   const { data: bracket, isLoading: isLoadingBracket, error: bracketError } = useDoc<BracketType>(bracketRef);
+  
+  const venuesRef = useMemoFirebase(() => collection(firestore, 'venues'), [firestore]);
+  const { data: venues, isLoading: isLoadingVenues } = useCollection<Venue>(venuesRef);
+
+  const sportsRef = useMemoFirebase(() => collection(firestore, 'sports'), [firestore]);
+  const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
 
   const handleSelectWinner = (match: BracketMatch, winner: Team) => {
     if (match.status === 'completed') {
@@ -106,15 +119,13 @@ export default function BracketPage() {
   };
   
   const confirmWinner = async () => {
-    if (!selectedMatch || !event || !bracket) return;
+    if (!selectedMatch || !event || !bracket || !venues || !sports) return;
   
     const { match, winner } = selectedMatch;
     const eventDocRef = doc(firestore, 'events', eventId);
   
-    // --- Create a mutable copy of the matches array from the event data ---
     let updatedMatches = [...event.matches];
   
-    // 1. Update the current match status and winner in our mutable array
     const currentMatchIndex = updatedMatches.findIndex(m => m.matchId === match.matchId);
     if (currentMatchIndex !== -1) {
       updatedMatches[currentMatchIndex] = {
@@ -128,39 +139,93 @@ export default function BracketPage() {
         return;
     }
   
-    // 2. For knockout, find the next match and advance the winner
+    // --- Knockout Winner Progression Logic ---
     if (event.settings.format === 'knockout') {
-      const currentRoundIndex = bracket.rounds.findIndex(r => r.matches.includes(match.matchId));
-      const matchIndexInRound = bracket.rounds[currentRoundIndex].matches.indexOf(match.matchId);
-  
-      // Check if there is a next round
-      if (currentRoundIndex < bracket.rounds.length - 1) {
-        const nextRoundIndex = currentRoundIndex + 1;
+      const currentRound = bracket.rounds.find(r => r.matches.includes(match.matchId));
+      if (!currentRound) {
+          setIsAlertOpen(false); return;
+      }
+      const matchIndexInRound = currentRound.matches.indexOf(match.matchId);
+      const isFinalMatch = currentRound.roundIndex === bracket.rounds.length -1;
+
+      // If it's the final match, update event status
+      if (isFinalMatch) {
+          try {
+              await updateDoc(eventDocRef, { 
+                  matches: updatedMatches,
+                  status: 'completed'
+              });
+              toast({ title: "Tournament Over", description: `${winner.teamName} is the champion!` });
+          } catch(e) {
+             toast({ variant: "destructive", title: "Error completing tournament", description: (e as Error).message });
+          }
+          setIsAlertOpen(false);
+          return;
+      }
+
+      // Not the final match, so find the next match to advance to
+      const nextRoundIndex = currentRound.roundIndex + 1;
+      const nextRound = bracket.rounds.find(r => r.roundIndex === nextRoundIndex);
+      if (nextRound) {
         const nextMatchIndexInNextRound = Math.floor(matchIndexInRound / 2);
+        const nextMatchId = nextRound.matches[nextMatchIndexInNextRound];
+        const nextMatchIndexInEvent = updatedMatches.findIndex(m => m.matchId === nextMatchId);
         
-        const nextMatchId = bracket.rounds[nextRoundIndex]?.matches[nextMatchIndexInNextRound];
-  
-        // If a match exists in the next round for the winner to advance to
-        if (nextMatchId) {
+        if (nextMatchIndexInEvent !== -1) {
           const teamSlotToUpdate = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
-  
-          const nextMatchIndexInEvent = updatedMatches.findIndex(m => m.matchId === nextMatchId);
-          if (nextMatchIndexInEvent !== -1) {
-            updatedMatches[nextMatchIndexInEvent] = {
-              ...updatedMatches[nextMatchIndexInEvent],
-              [teamSlotToUpdate]: winner.teamId,
-            };
+          updatedMatches[nextMatchIndexInEvent][teamSlotToUpdate] = winner.teamId;
+
+          const nextMatch = updatedMatches[nextMatchIndexInEvent];
+
+          // If both teams for the next match are now decided, schedule it
+          if (nextMatch.teamAId !== 'TBD' && nextMatch.teamBId !== 'TBD') {
+              try {
+                  const venueAvailability = venues.reduce((acc, venue) => {
+                      acc[venue.id!] = [{
+                          startTime: new Date(new Date(event.startDate).setHours(9,0,0,0)).toISOString(),
+                          endTime: new Date(new Date(event.startDate).setHours(22,0,0,0)).toISOString(),
+                      }];
+                      return acc;
+                  }, {} as Record<string, {startTime: string, endTime: string}[]>);
+
+                  const sportsData = sports.reduce((acc, sport) => {
+                      acc[sport.sportName] = { defaultDurationMinutes: sport.defaultDurationMinutes };
+                      return acc;
+                  }, {} as Record<string, {defaultDurationMinutes: number}>);
+                  
+                  const aiResult = await optimizeScheduleWithAI({
+                      eventId: event.eventId,
+                      venueAvailability,
+                      teamPreferences: {},
+                      timeConstraints: {
+                          earliestStartTime: new Date().toISOString(),
+                          latestEndTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                      },
+                      matches: [{...nextMatch, sportType: event.sportType}],
+                      sports: sportsData
+                  });
+                  
+                  const scheduledMatch = aiResult.optimizedMatches[0];
+                  if (scheduledMatch) {
+                      updatedMatches[nextMatchIndexInEvent].startTime = scheduledMatch.startTime;
+                      updatedMatches[nextMatchIndexInEvent].endTime = scheduledMatch.endTime;
+                      updatedMatches[nextMatchIndexInEvent].venueId = scheduledMatch.venueId;
+                  }
+              } catch (aiError) {
+                  console.error("AI Scheduling for next round failed:", aiError);
+                  toast({ variant: "destructive", title: "AI Scheduling Failed", description: "Could not automatically schedule the next match." });
+              }
           }
         }
       }
     }
   
-    // 3. Atomically update the event document with the modified matches array
+    // Atomically update the event document
     try {
       await updateDoc(eventDocRef, { matches: updatedMatches });
       toast({
         title: "Winner Declared",
-        description: `${winner.teamName} has won the match.`
+        description: `${winner.teamName} advances to the next round.`
       });
     } catch (e: any) {
       toast({
@@ -174,7 +239,7 @@ export default function BracketPage() {
     }
   };
 
-  const isLoading = isLoadingEvent || isLoadingBracket;
+  const isLoading = isLoadingEvent || isLoadingBracket || isLoadingVenues || isLoadingSports;
   const getTeamById = (teamId: string) => event?.teams.find(t => t.teamId === teamId);
 
   if (isLoading) {
