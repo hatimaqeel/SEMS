@@ -82,13 +82,15 @@ service cloud.firestore {
       /**
        * @description Handles join requests for an event.
        * @path /events/{eventId}/joinRequests/{userId}
-       * @allow (read, list): Admins can read all join requests.
+       * @allow (list): Admins can read all join requests.
+       * @allow (get): An admin can read or a user can read their own request.
        * @allow (create): A signed-in user can create a join request for themselves.
        * @allow (update): An admin can update the status of any join request.
        * @principle Segregated writes, admin management.
        */
       match /joinRequests/{userId} {
-        allow get, list: if isAdmin();
+        allow list: if isAdmin();
+        allow get: if isAdmin() || isOwner(userId);
         allow create: if isOwner(userId);
         allow update: if isAdmin();
         allow delete: if false;

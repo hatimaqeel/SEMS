@@ -1,6 +1,6 @@
 'use client';
 
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc } from 'firebase/firestore';
 import {
   ArrowRight,
   Calendar,
@@ -53,18 +53,28 @@ export default function StudentDashboardPage() {
   const [isLoadingMyRequests, setIsLoadingMyRequests] = useState(true);
 
   useEffect(() => {
-    if (!user || !events) return;
+    if (!user || !events || events.length === 0) {
+      if (!isLoadingEvents) {
+        setIsLoadingMyRequests(false);
+      }
+      return;
+    }
 
     const fetchAllRequests = async () => {
       setIsLoadingMyRequests(true);
       const requests: Record<string, JoinRequest | null> = {};
       const requestPromises = events.map(async (event) => {
         const requestRef = doc(firestore, 'events', event.id!, 'joinRequests', user.uid);
-        const requestSnap = await getDoc(requestRef);
-        if (requestSnap.exists()) {
-          requests[event.id!] = requestSnap.data() as JoinRequest;
-        } else {
-          requests[event.id!] = null;
+        try {
+            const requestSnap = await getDoc(requestRef);
+            if (requestSnap.exists()) {
+            requests[event.id!] = requestSnap.data() as JoinRequest;
+            } else {
+            requests[event.id!] = null;
+            }
+        } catch (error) {
+            console.error(`Could not fetch join request for event ${event.id}:`, error);
+            requests[event.id!] = null;
         }
       });
       await Promise.all(requestPromises);
@@ -73,7 +83,7 @@ export default function StudentDashboardPage() {
     };
 
     fetchAllRequests();
-  }, [user, events, firestore]);
+  }, [user, events, firestore, isLoadingEvents]);
 
   const handleRequestToJoin = async (event: Event) => {
     if (!user || !userData) {
