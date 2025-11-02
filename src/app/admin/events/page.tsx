@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { collection, doc } from "firebase/firestore";
 import type { Event, Sport, Venue, Department } from "@/lib/types";
 import {
@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { MoreHorizontal, PlusCircle, Trash } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash, Edit } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -110,17 +110,18 @@ export default function EventsPage() {
     };
     
     if (selectedEvent) {
-      // This is an update, which is not implemented in this step.
-      // For now, we just show a toast.
-      toast({
-        title: 'Coming Soon!',
-        description: 'Editing functionality will be added in a future step.',
+      const eventDocRef = doc(firestore, 'events', selectedEvent.eventId);
+      const finalData = { ...selectedEvent, ...eventData };
+      setDocumentNonBlocking(eventDocRef, finalData, { merge: true });
+       toast({
+        title: 'Event Updated',
+        description: `"${values.name}" has been successfully updated.`,
       });
     } else {
       // This is a new event
       const newDocRef = doc(collection(firestore, 'events'));
       const finalData = { ...eventData, eventId: newDocRef.id };
-      addDocumentNonBlocking(collection(firestore, 'events'), finalData);
+      setDocumentNonBlocking(newDocRef, finalData, {});
       toast({
         title: 'Event Created',
         description: `"${values.name}" has been successfully created.`,
@@ -176,14 +177,14 @@ export default function EventsPage() {
                 </TableRow>
               )}
               {events && events.map((event) => (
-                <TableRow key={event.eventId}>
+                <TableRow key={event.id}>
                   <TableCell className="font-medium">{event.name}</TableCell>
                   <TableCell>{event.sportType}</TableCell>
                   <TableCell>{new Date(event.startDate).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(event.status)}>{event.status}</Badge>
                   </TableCell>
-                  <TableCell>{event.teams.length}</TableCell>
+                  <TableCell>{event.teams?.length || 0}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -195,6 +196,7 @@ export default function EventsPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleEditClick(event)}>
+                          <Edit className="mr-2 h-4 w-4" />
                           Edit Event
                         </DropdownMenuItem>
                         <DropdownMenuItem>View Bracket</DropdownMenuItem>
@@ -217,14 +219,14 @@ export default function EventsPage() {
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh]">
+        <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>{selectedEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
               <DialogDescription>
                 {selectedEvent ? 'Update the details of your event.' : 'Fill in the form to create a new sports event.'}
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="h-auto">
+            <ScrollArea className="max-h-[70vh] md:max-h-[80vh]">
               <div className="py-4 pr-6">
                 {(isLoadingSports || isLoadingVenues || isLoadingDepts) ? <p>Loading form data...</p> : (
                   <EventForm

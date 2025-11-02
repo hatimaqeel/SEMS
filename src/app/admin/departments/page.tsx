@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 import type { Department } from '@/lib/types';
 import {
   Table,
@@ -80,9 +80,9 @@ export default function DepartmentsPage() {
   };
 
   const confirmDelete = async () => {
-    if (selectedDept?.departmentId) {
+    if (selectedDept?.id) {
       try {
-        await deleteDoc(doc(firestore, 'departments', selectedDept.departmentId));
+        await deleteDoc(doc(firestore, 'departments', selectedDept.id));
         toast({
           title: 'Department Deleted',
           description: `"${selectedDept.name}" has been deleted.`,
@@ -115,7 +115,7 @@ export default function DepartmentsPage() {
     try {
       if (selectedDept) {
         // Update existing department
-        const deptDocRef = doc(firestore, 'departments', selectedDept.departmentId);
+        const deptDocRef = doc(firestore, 'departments', selectedDept.id);
         await updateDoc(deptDocRef, { name: departmentName });
         toast({
           title: 'Department Updated',
@@ -124,8 +124,8 @@ export default function DepartmentsPage() {
       } else {
         // Add new department
         const newDocRef = doc(collection(firestore, 'departments'));
-        await addDoc(collection(firestore, 'departments'), {
-          departmentId: newDocRef.id,
+        await setDoc(newDocRef, {
+          departmentId: newDocRef.id, // Store the doc id within the document
           name: departmentName
         });
         toast({
@@ -179,7 +179,7 @@ export default function DepartmentsPage() {
                 </TableRow>
               )}
               {departments && departments.map(dept => (
-                <TableRow key={dept.departmentId}>
+                <TableRow key={dept.id}>
                   <TableCell className="font-medium">{dept.name}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
