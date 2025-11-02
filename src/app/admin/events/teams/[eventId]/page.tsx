@@ -200,10 +200,10 @@ export default function ManageTeamsPage() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {event?.teams?.map(team => (
           <Card key={team.teamId} className="flex flex-col">
-            <CardHeader className='flex-row items-start justify-between'>
-              <div className="overflow-hidden">
-                <CardTitle className="truncate">{team.teamName}</CardTitle>
-                <p className="text-sm text-muted-foreground truncate">{team.department}</p>
+            <CardHeader className='flex-row items-start justify-between gap-4'>
+              <div className="flex-1">
+                <CardTitle className="break-words">{team.teamName}</CardTitle>
+                <p className="text-sm text-muted-foreground">{team.department}</p>
               </div>
                <div className="flex items-center gap-1 flex-shrink-0">
                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleAddPlayers(team)}>
