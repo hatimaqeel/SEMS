@@ -16,19 +16,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertTriangle, Bot, Loader, Calendar, Clock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-function generateRoundRobinPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
+function generateKnockoutPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
     const pairs: { teamAId: string, teamBId: string }[] = [];
     if (teams.length < 2) return pairs;
 
-    for (let i = 0; i < teams.length; i++) {
-        for (let j = i + 1; j < teams.length; j++) {
-            // Optional: Avoid teams from the same department if setting requires it
-            // if (!allowSameDeptMatches && teams[i].department === teams[j].department) continue;
-            pairs.push({ teamAId: teams[i].teamId, teamBId: teams[j].teamId });
+    // Shuffle teams to randomize pairings
+    const shuffledTeams = [...teams].sort(() => 0.5 - Math.random());
+
+    // Pair teams up
+    for (let i = 0; i < shuffledTeams.length; i += 2) {
+        if (shuffledTeams[i + 1]) {
+            pairs.push({ teamAId: shuffledTeams[i].teamId, teamBId: shuffledTeams[i + 1].teamId });
         }
     }
+    // Note: If there's an odd number of teams, one team will not be paired.
+    // A more advanced implementation might give one team a "bye" to the next round.
+    // For now, we'll only schedule pairs.
     return pairs;
 }
+
 
 export default function SchedulePage() {
   const { eventId } = useParams() as { eventId: string };
@@ -78,7 +84,7 @@ export default function SchedulePage() {
       return;
     }
     
-    const teamPairs = generateRoundRobinPairs(approvedTeams);
+    const teamPairs = generateKnockoutPairs(approvedTeams);
     if(teamPairs.length === 0) {
         setGenerationError('Could not generate any match pairs. Check your teams.');
         setIsGenerating(false);
@@ -280,3 +286,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
