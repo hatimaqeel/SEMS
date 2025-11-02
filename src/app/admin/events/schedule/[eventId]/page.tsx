@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -158,7 +159,7 @@ export default function SchedulePage() {
       const allMatches: Match[] = matchesToSchedule.map(matchToSchedule => {
           const optimized = optimizedMatches.find(opt => opt.matchId === matchToSchedule.matchId);
           const isBye = matchToSchedule.teamAId === 'TBD' || matchToSchedule.teamBId === 'TBD';
-          const winnerId = isBye ? (matchToSchedule.teamAId !== 'TBD' ? matchToSchedule.teamAId : matchToSchedule.teamBId) : undefined;
+          const winnerId = isBye ? (matchToSchedule.teamAId !== 'TBD' ? matchToSchedule.teamAId : matchToSchedule.teamBId) : '';
           
           return {
               ...matchToSchedule,
@@ -189,7 +190,9 @@ export default function SchedulePage() {
         let roundNamePrefix = "Round";
         
         while (numMatchesInRound > 1) {
-            numMatchesInRound = Math.ceil(numMatchesInRound / 2);
+            numMatchesInRound = Math.floor(numMatchesInRound / 2);
+            if (numMatchesInRound === 0) break;
+            
             let roundName = `${roundNamePrefix} ${roundIndex}`;
             if (numMatchesInRound === 1) roundName = "Final";
             else if (numMatchesInRound === 2) roundName = "Semifinals";
@@ -211,6 +214,7 @@ export default function SchedulePage() {
                     endTime: '',
                     round: roundIndex,
                     status: 'scheduled',
+                    winnerTeamId: '',
                 });
             }
             
