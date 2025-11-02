@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -25,6 +24,9 @@ function generateKnockoutPairs(teams: Team[]): { teamAId: string, teamBId: strin
     for (let i = 0; i < shuffledTeams.length; i += 2) {
         if (shuffledTeams[i + 1]) {
             pairs.push({ teamAId: shuffledTeams[i].teamId, teamBId: shuffledTeams[i + 1].teamId });
+        } else {
+             // If there's an odd number of teams, the last one gets a bye
+            pairs.push({ teamAId: shuffledTeams[i].teamId, teamBId: 'TBD' });
         }
     }
     return pairs;
@@ -59,7 +61,7 @@ export default function SchedulePage() {
   const sportsRef = useMemoFirebase(() => collection(firestore, 'sports'), [firestore]);
   const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
 
-  const getTeamName = (teamId: string) => event?.teams.find(t => t.teamId === teamId)?.teamName || teamId;
+  const getTeamName = (teamId: string) => teamId === 'TBD' ? 'TBD' : (event?.teams.find(t => t.teamId === teamId)?.teamName || teamId);
   const getVenueName = (venueId: string) => venues?.find(v => v.id === venueId)?.name || venueId;
 
   const handleGenerateSchedule = async () => {
@@ -82,11 +84,10 @@ export default function SchedulePage() {
         return;
     }
 
-    // Unique Department Validation
     if (event.settings.format === 'knockout') {
       const uniqueDepartments = new Set(approvedTeams.map(team => team.department.toLowerCase().trim()));
-      if (uniqueDepartments.size < 2) {
-        setGenerationError('Knockout scheduling requires teams from at least two different departments to generate a bracket.');
+      if (uniqueDepartments.size < 2 && !event.settings.allowSameDeptMatches) {
+        setGenerationError('Knockout scheduling requires teams from at least two different departments. You can enable matching between same-department teams in the event settings.');
         setIsGenerating(false);
         return;
       }
@@ -103,7 +104,7 @@ export default function SchedulePage() {
     }
 
     const matchesToSchedule = teamPairs.map((pair, index) => ({
-        matchId: `m${index + 1}`,
+        matchId: `m${Date.now() + index}`,
         ...pair,
         sportType: event.sportType,
     }));
@@ -135,58 +136,94 @@ export default function SchedulePage() {
         }, {} as Record<string, {defaultDurationMinutes: number}>);
 
 
-      const result = await optimizeScheduleWithAI({
-        eventId: event.eventId,
-        venueAvailability,
-        teamPreferences,
-        timeConstraints: { 
-            earliestStartTime: new Date(new Date(event.startDate).setHours(9,0,0,0)).toISOString(),
-            latestEndTime: new Date(new Date(event.startDate).setHours(22,0,0,0)).toISOString(),
-        },
-        matches: matchesToSchedule,
-        sports: sportsData,
-      });
+      const aiMatchesToSchedule = matchesToSchedule.filter(m => m.teamAId !== 'TBD' && m.teamBId !== 'TBD');
+      const byes = matchesToSchedule.filter(m => m.teamAId === 'TBD' || m.teamBId === 'TBD');
+
+      let optimizedMatches: any[] = [];
+      if (aiMatchesToSchedule.length > 0) {
+        const result = await optimizeScheduleWithAI({
+            eventId: event.eventId,
+            venueAvailability,
+            teamPreferences,
+            timeConstraints: { 
+                earliestStartTime: new Date(new Date(event.startDate).setHours(9,0,0,0)).toISOString(),
+                latestEndTime: new Date(new Date(event.startDate).setHours(22,0,0,0)).toISOString(),
+            },
+            matches: aiMatchesToSchedule,
+            sports: sportsData,
+        });
+        optimizedMatches = result.optimizedMatches;
+      }
       
-      const allMatches: Match[] = result.optimizedMatches.map((match, index) => {
-        const originalMatch = matchesToSchedule.find(m => m.matchId === match.matchId)!;
-        return {
-            ...match,
-            ...originalMatch,
-            round: 1, // All initial matches are round 1
-            status: 'scheduled' as const,
-        };
+      const allMatches: Match[] = matchesToSchedule.map(matchToSchedule => {
+          const optimized = optimizedMatches.find(opt => opt.matchId === matchToSchedule.matchId);
+          const isBye = matchToSchedule.teamAId === 'TBD' || matchToSchedule.teamBId === 'TBD';
+          const winnerId = isBye ? (matchToSchedule.teamAId !== 'TBD' ? matchToSchedule.teamAId : matchToSchedule.teamBId) : undefined;
+          
+          return {
+              ...matchToSchedule,
+              venueId: optimized?.venueId || '',
+              startTime: optimized?.startTime || '',
+              endTime: optimized?.endTime || '',
+              round: 1,
+              status: isBye ? 'completed' : 'scheduled',
+              winnerTeamId: winnerId,
+          };
       });
 
-      // Update event with the full schedule of matches
       await updateDoc(eventRef, { matches: allMatches, status: 'ongoing' });
       
-      // Now, generate and store the bracket
       const bracketRef = doc(firestore, 'brackets', eventId);
       const newBracket: Bracket = {
         id: eventId,
         rounds: [{
             roundIndex: 1,
-            roundName: event.settings.format === 'knockout' ? `Round 1` : 'All Matches',
+            roundName: `Round 1`,
             matches: allMatches.map(m => m.matchId)
         }]
       };
       
-      // For knockout, add empty future rounds
       if (event.settings.format === 'knockout') {
-        let numTeams = approvedTeams.length;
-        let numRounds = Math.ceil(Math.log2(numTeams));
-        for(let i=2; i<=numRounds; i++){
-            let roundName = "Round " + i;
-            if(i === numRounds) roundName = "Final";
-            if(i === numRounds-1 && numTeams >= 4) roundName = "Semifinals";
-            if(i === numRounds-2 && numTeams >= 8) roundName = "Quarterfinals";
+        let numMatchesInRound = Math.ceil(approvedTeams.length / 2);
+        let roundIndex = 2;
+        let roundNamePrefix = "Round";
+        
+        while (numMatchesInRound > 1) {
+            numMatchesInRound = Math.ceil(numMatchesInRound / 2);
+            let roundName = `${roundNamePrefix} ${roundIndex}`;
+            if (numMatchesInRound === 1) roundName = "Final";
+            else if (numMatchesInRound === 2) roundName = "Semifinals";
+            else if (numMatchesInRound === 4) roundName = "Quarterfinals";
+
+            const roundMatches: Match[] = [];
+            const newMatchIds: string[] = [];
+
+            for (let i = 0; i < numMatchesInRound; i++) {
+                const matchId = `m${Date.now() + roundIndex * 100 + i}`;
+                newMatchIds.push(matchId);
+                roundMatches.push({
+                    matchId: matchId,
+                    teamAId: 'TBD',
+                    teamBId: 'TBD',
+                    sportType: event.sportType,
+                    venueId: '',
+                    startTime: '',
+                    endTime: '',
+                    round: roundIndex,
+                    status: 'scheduled',
+                });
+            }
             
+            allMatches.push(...roundMatches);
             newBracket.rounds.push({
-                roundIndex: i,
-                roundName: roundName,
-                matches: [] // Initially empty
-            })
+                roundIndex,
+                roundName,
+                matches: newMatchIds
+            });
+
+            roundIndex++;
         }
+         await updateDoc(eventRef, { matches: allMatches });
       }
 
       setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
@@ -255,9 +292,9 @@ export default function SchedulePage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Round</TableHead>
                 <TableHead>Match</TableHead>
                 <TableHead>Venue</TableHead>
-                <TableHead>Date</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -266,21 +303,24 @@ export default function SchedulePage() {
               {sortedMatches?.length > 0 ? (
                 sortedMatches.map(match => (
                   <TableRow key={match.matchId}>
+                    <TableCell>{match.round}</TableCell>
                     <TableCell className="font-medium">
                         {getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}
                     </TableCell>
-                    <TableCell>{getVenueName(match.venueId)}</TableCell>
+                    <TableCell>{match.venueId ? getVenueName(match.venueId) : 'N/A'}</TableCell>
                      <TableCell>
-                      <div className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {new Date(match.startTime).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                         <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
+                      {match.startTime ? (
+                        <div className="flex flex-col">
+                            <div className="flex items-center">
+                                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                {new Date(match.startTime).toLocaleDateString()}
+                            </div>
+                             <div className="flex items-center text-xs">
+                                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                                {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                        </div>
+                      ) : 'TBD'}
                     </TableCell>
                     <TableCell>{match.status}</TableCell>
                   </TableRow>

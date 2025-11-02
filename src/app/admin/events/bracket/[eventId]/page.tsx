@@ -1,12 +1,11 @@
-
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection, updateDoc } from 'firebase/firestore';
-import type { Event, Bracket as BracketType, Match, Team, Venue } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import type { Event, Bracket as BracketType, Match, Team } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { Loader, Trophy, Users, Calendar, Clock } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -14,14 +13,6 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -95,9 +86,6 @@ export default function BracketPage() {
   );
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
   
-  const venuesRef = useMemoFirebase(() => collection(firestore, 'venues'), [firestore]);
-  const { data: venues, isLoading: isLoadingVenues } = useCollection<Venue>(venuesRef);
-  
   const bracketRef = useMemoFirebase(
     () => doc(firestore, 'brackets', eventId),
     [firestore, eventId]
@@ -105,48 +93,69 @@ export default function BracketPage() {
   const { data: bracket, isLoading: isLoadingBracket, error: bracketError } = useDoc<BracketType>(bracketRef);
 
   const handleSelectWinner = (match: BracketMatch, winner: Team) => {
+    if (match.status === 'completed') {
+      toast({
+        variant: 'destructive',
+        title: 'Match Already Completed',
+        description: 'This match already has a winner.',
+      });
+      return;
+    }
     setSelectedMatch({ match, winner });
     setIsAlertOpen(true);
   };
   
   const confirmWinner = async () => {
-    if (!selectedMatch || !event) return;
-
+    if (!selectedMatch || !event || !bracket) return;
+  
     const { match, winner } = selectedMatch;
     const eventDocRef = doc(firestore, 'events', eventId);
-
-    // 1. Update the current match status and winner
-    let updatedMatches = event.matches.map(m =>
-      m.matchId === match.matchId
-        ? { ...m, winnerTeamId: winner.teamId, status: 'completed' as const }
-        : m
-    );
-
+  
+    // --- Create a mutable copy of the matches array from the event data ---
+    let updatedMatches = [...event.matches];
+  
+    // 1. Update the current match status and winner in our mutable array
+    const currentMatchIndex = updatedMatches.findIndex(m => m.matchId === match.matchId);
+    if (currentMatchIndex !== -1) {
+      updatedMatches[currentMatchIndex] = {
+        ...updatedMatches[currentMatchIndex],
+        winnerTeamId: winner.teamId,
+        status: 'completed' as const
+      };
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not find the match to update.'});
+        setIsAlertOpen(false);
+        return;
+    }
+  
     // 2. For knockout, find the next match and advance the winner
-    if (event.settings.format === 'knockout' && bracket) {
+    if (event.settings.format === 'knockout') {
       const currentRoundIndex = bracket.rounds.findIndex(r => r.matches.includes(match.matchId));
-      
-      if (currentRoundIndex !== -1 && currentRoundIndex < bracket.rounds.length - 1) {
-        const matchIndexInRound = bracket.rounds[currentRoundIndex].matches.indexOf(match.matchId);
+      const matchIndexInRound = bracket.rounds[currentRoundIndex].matches.indexOf(match.matchId);
+  
+      // Check if there is a next round
+      if (currentRoundIndex < bracket.rounds.length - 1) {
         const nextRoundIndex = currentRoundIndex + 1;
-        const nextMatchIndexInRound = Math.floor(matchIndexInRound / 2);
+        const nextMatchIndexInNextRound = Math.floor(matchIndexInRound / 2);
         
-        const nextMatchId = bracket.rounds[nextRoundIndex]?.matches[nextMatchIndexInRound];
-
+        const nextMatchId = bracket.rounds[nextRoundIndex]?.matches[nextMatchIndexInNextRound];
+  
+        // If a match exists in the next round for the winner to advance to
         if (nextMatchId) {
-          const teamSlot = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
-          
-          updatedMatches = updatedMatches.map(m => {
-            if (m.matchId === nextMatchId) {
-              return { ...m, [teamSlot]: winner.teamId };
-            }
-            return m;
-          });
+          const teamSlotToUpdate = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
+  
+          const nextMatchIndexInEvent = updatedMatches.findIndex(m => m.matchId === nextMatchId);
+          if (nextMatchIndexInEvent !== -1) {
+            updatedMatches[nextMatchIndexInEvent] = {
+              ...updatedMatches[nextMatchIndexInEvent],
+              [teamSlotToUpdate]: winner.teamId,
+            };
+          }
         }
       }
     }
-
-    // 3. Atomically update the event document
+  
+    // 3. Atomically update the event document with the modified matches array
     try {
       await updateDoc(eventDocRef, { matches: updatedMatches });
       toast({
@@ -165,10 +174,8 @@ export default function BracketPage() {
     }
   };
 
-
-  const isLoading = isLoadingEvent || isLoadingBracket || isLoadingVenues;
+  const isLoading = isLoadingEvent || isLoadingBracket;
   const getTeamById = (teamId: string) => event?.teams.find(t => t.teamId === teamId);
-  const getVenueName = (venueId: string) => venues?.find(v => v.id === venueId)?.name || venueId;
 
   if (isLoading) {
     return (
@@ -195,30 +202,18 @@ export default function BracketPage() {
     );
   }
   
-  const allMatchesWithData = bracket.rounds.flatMap(round =>
-    round.matches.map(matchId => {
-      const matchData = event.matches.find(m => m.matchId === matchId);
-      if(!matchData) return null;
-      return {
-        ...matchData,
-        teamA: getTeamById(matchData.teamAId),
-        teamB: getTeamById(matchData.teamBId),
-      } as BracketMatch;
-    }).filter((m): m is BracketMatch => m !== null)
-  );
-
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title={`Bracket for ${event.name}`}
-        description={event.settings.format === 'knockout' ? "Declare winners to automatically advance them to the next round." : "View the schedule for this round robin tournament."}
+        description={event.settings.format === 'knockout' ? "Declare winners to automatically advance them to the next round." : "This is a round-robin tournament. All matches are listed on the schedule page."}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Tournament {event.settings.format === 'knockout' ? 'Bracket' : 'Schedule'}</CardTitle>
+          <CardTitle>Tournament Bracket</CardTitle>
           <CardDescription>
-            {event.settings.format === 'knockout' ? "Click 'Win' to set a match winner. The winner will move to the next round." : "All matches in the round robin are listed below."}
+            {event.settings.format === 'knockout' ? "Click 'Win' to set a match winner. The winner will move to the next round." : "Round-robin matches do not use a bracket structure. See the schedule for match details."}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4">
@@ -230,9 +225,9 @@ export default function BracketPage() {
                         const matchData = event.matches.find(m => m.matchId === matchId);
                         if(!matchData) return null;
                         return {
-                        ...matchData,
-                        teamA: getTeamById(matchData.teamAId),
-                        teamB: getTeamById(matchData.teamBId),
+                          ...matchData,
+                          teamA: getTeamById(matchData.teamAId),
+                          teamB: getTeamById(matchData.teamBId),
                         } as BracketMatch;
                     }).filter((m): m is BracketMatch => m !== null);
 
@@ -248,54 +243,12 @@ export default function BracketPage() {
               </div>
             </div>
           ) : (
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Match</TableHead>
-                    <TableHead>Venue</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Actions</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {allMatchesWithData.map(match => {
-                    const teamA = getTeamById(match.teamAId);
-                    const teamB = getTeamById(match.teamBId);
-                    return (
-                        <TableRow key={match.matchId}>
-                            <TableCell className="font-medium">
-                                {teamA?.teamName || 'TBD'} vs {teamB?.teamName || 'TBD'}
-                            </TableCell>
-                            <TableCell>{getVenueName(match.venueId)}</TableCell>
-                            <TableCell>
-                                <div className="flex items-center">
-                                    <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    {new Date(match.startTime).toLocaleDateString()}
-                                </div>
-                                <div className="flex items-center text-xs text-muted-foreground">
-                                    <Clock className="mr-2 h-4 w-4" />
-                                    {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                {match.status !== 'completed' && teamA && teamB ? (
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="outline" onClick={() => handleSelectWinner(match, teamA)}>
-                                            {teamA.teamName} Won
-                                        </Button>
-                                        <Button size="sm" variant="outline" onClick={() => handleSelectWinner(match, teamB)}>
-                                            {teamB.teamName} Won
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground capitalize">{match.status}</span>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    )
-                })}
-                </TableBody>
-            </Table>
+             <div className="text-center py-10 px-6 bg-muted/50 rounded-lg">
+                <p className="font-semibold">Round Robin Format</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                 All matches are independent. View the full list on the "Manage Schedule" page.
+                </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -318,5 +271,3 @@ export default function BracketPage() {
     </div>
   );
 }
-
-    
