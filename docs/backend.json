@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Sport": {
@@ -66,6 +67,26 @@
         "location",
         "capacity",
         "reservations"
+      ]
+    },
+    "Department": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Department",
+      "type": "object",
+      "description": "Represents an academic or administrative department.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the department entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the department (e.g., Computer Science)."
+        }
+      },
+      "required": [
+        "id",
+        "name"
       ]
     },
     "Event": {
@@ -343,6 +364,22 @@
             {
               "name": "venueId",
               "description": "Unique identifier for the venue."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/departments/{departmentId}",
+        "definition": {
+          "entityName": "Department",
+          "schema": {
+            "$ref": "#/backend/entities/Department"
+          },
+          "description": "Stores department information.",
+          "params": [
+            {
+              "name": "departmentId",
+              "description": "Unique identifier for the department."
             }
           ]
         }

@@ -1,3 +1,4 @@
+
 export type Sport = {
   sportId: string;
   sportName: string;
@@ -16,6 +17,11 @@ export type Venue = {
     endTime: string;
   }[];
 };
+
+export type Department = {
+  departmentId: string;
+  name: string;
+}
 
 export type Event = {
   eventId: string;

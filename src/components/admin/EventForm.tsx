@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,7 +31,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { Event, Sport, Venue } from '@/lib/types';
+import type { Event, Sport, Venue, Department } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
@@ -52,7 +53,7 @@ export type EventFormValues = z.infer<typeof formSchema>;
 interface EventFormProps {
   sports: Sport[];
   venues: Venue[];
-  departments: string[];
+  departments: Department[];
   initialData?: Event;
   onSubmit: (values: EventFormValues) => void;
   isSubmitting: boolean;
@@ -140,8 +141,8 @@ export function EventForm({
                   </FormControl>
                   <SelectContent>
                     {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
+                      <SelectItem key={dept.departmentId} value={dept.name}>
+                        {dept.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

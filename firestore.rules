@@ -1,3 +1,4 @@
+
 /**
  * @file UniSport Central - Firestore Security Rules
  * @description This ruleset enforces a role-based access control model for the UniSport Central application.
@@ -5,6 +6,7 @@
  * Data Structure:
  * - /sports/{sportId}: Public data about sports.
  * - /venues/{venueId}: Public data about venues.
+ * - /departments/{departmentId}: Data about university departments.
  * - /events/{eventId}: Public data about events.
  * - /events/{eventId}/teams/{teamId}: Data about teams participating in events.
  * - /events/{eventId}/matches/{matchId}: Data about matches scheduled for events.
@@ -13,13 +15,14 @@
  *
  * Key Security Decisions:
  * - Users can read and write their own profile data.
- * - Admins can create, update, and delete sports, venues, and events.
- * - All sports, venues and events are publicly readable.
+ * - Admins can create, update, and delete sports, venues, departments, and events.
+ * - All sports, venues, departments, and events are publicly readable.
  * - Teams and Matches are scoped to specific events. Creation, modification, and deletion of teams and matches is not supported and therefore denied.
  *
  * Access Control Patterns:
  * - Sports: Public read, admin write.
  * - Venues: Public read, admin write.
+ * - Departments: Public read, admin write.
  * - Events: Public read, admin write.
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
@@ -50,6 +53,18 @@ service cloud.firestore {
      * @principle Public read, admin write.
      */
     match /venues/{venueId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Grants public read access to department data. Write access is for admins.
+     * @path /departments/{departmentId}
+     * @allow (get, list): Any user can read department data.
+     * @allow (create, update, delete): Admins can manage department data.
+     * @principle Public read, admin write.
+     */
+    match /departments/{departmentId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }

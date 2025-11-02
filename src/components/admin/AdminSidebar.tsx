@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -20,6 +21,7 @@ import {
   Users,
   Settings,
   LogOut,
+  Building,
 } from "lucide-react";
 import { useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
@@ -30,6 +32,7 @@ const navItems = [
   { href: "/admin/sports", icon: Trophy, label: "Manage Sports" },
   { href: "/admin/venues", icon: MapPin, label: "Manage Venues" },
   { href: "/admin/users", icon: Users, label: "Manage Users" },
+  { href: "/admin/departments", icon: Building, label: "Manage Departments" },
 ];
 
 const bottomNavItems = [

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -5,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { collection, doc } from "firebase/firestore";
-import type { Event, Sport, Venue } from "@/lib/types";
+import type { Event, Sport, Venue, Department } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -46,6 +47,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EventForm, type EventFormValues } from "@/components/admin/EventForm";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function EventsPage() {
   const router = useRouter();
@@ -60,12 +62,12 @@ export default function EventsPage() {
   const eventsRef = useMemoFirebase(() => collection(firestore, "events"), [firestore]);
   const sportsRef = useMemoFirebase(() => collection(firestore, "sports"), [firestore]);
   const venuesRef = useMemoFirebase(() => collection(firestore, "venues"), [firestore]);
+  const departmentsRef = useMemoFirebase(() => collection(firestore, "departments"), [firestore]);
 
   const { data: events, isLoading: isLoadingEvents } = useCollection<Event>(eventsRef);
   const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
   const { data: venues, isLoading: isLoadingVenues } = useCollection<Venue>(venuesRef);
-
-  const departments = ["Sports Department", "Student Affairs", "Computer Science", "Software Engineering"];
+  const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
 
   const handleAddClick = () => {
     setSelectedEvent(undefined);
@@ -215,25 +217,27 @@ export default function EventsPage() {
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{selectedEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
-            <DialogDescription>
-              {selectedEvent ? 'Update the details of your event.' : 'Fill in the form to create a new sports event.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            {(isLoadingSports || isLoadingVenues) ? <p>Loading form data...</p> : (
-              <EventForm
-                sports={sports || []}
-                venues={venues || []}
-                departments={departments}
-                initialData={selectedEvent}
-                onSubmit={handleFormSubmit}
-                isSubmitting={isSubmitting}
-              />
-            )}
-          </div>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>{selectedEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
+              <DialogDescription>
+                {selectedEvent ? 'Update the details of your event.' : 'Fill in the form to create a new sports event.'}
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-auto">
+              <div className="py-4 pr-6">
+                {(isLoadingSports || isLoadingVenues || isLoadingDepts) ? <p>Loading form data...</p> : (
+                  <EventForm
+                    sports={sports || []}
+                    venues={venues || []}
+                    departments={departments || []}
+                    initialData={selectedEvent}
+                    onSubmit={handleFormSubmit}
+                    isSubmitting={isSubmitting}
+                  />
+                )}
+              </div>
+            </ScrollArea>
         </DialogContent>
       </Dialog>
       
