@@ -1,11 +1,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   collection,
   doc,
+  getDoc,
   setDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
@@ -91,16 +92,31 @@ export default function UsersPage() {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (role === 'admin' && secretKey !== 'unisports@cust2025') {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Invalid secret key for admin creation.",
-        });
-        return;
-    }
-    
     setIsSubmitting(true);
+    
+    if (role === 'admin') {
+      try {
+        const settingsDocRef = doc(firestore, 'settings', 'app');
+        const settingsDoc = await getDoc(settingsDocRef);
+        if (!settingsDoc.exists() || settingsDoc.data().secretKey !== secretKey) {
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Invalid secret key for admin creation.",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Error validating secret key",
+            description: "Could not validate secret key. Please try again.",
+          });
+        setIsSubmitting(false);
+        return;
+      }
+    }
     
     // We need a temporary auth instance to create a user
     // This doesn't sign the admin out.

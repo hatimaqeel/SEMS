@@ -25,7 +25,7 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, getDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { Department } from '@/lib/types';
 
@@ -126,7 +126,7 @@ export default function SignupPage() {
     initiateEmailSignUp(auth, studentEmail, studentPassword);
   };
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminPassword !== adminConfirmPassword) {
         toast({
@@ -136,17 +136,29 @@ export default function SignupPage() {
         });
         return;
     }
-    if (secretKey !== 'unisports@cust2025') {
-         toast({
+    setLoading(true);
+    try {
+        const settingsDocRef = doc(firestore, 'settings', 'app');
+        const settingsDoc = await getDoc(settingsDocRef);
+        if (!settingsDoc.exists() || settingsDoc.data().secretKey !== secretKey) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Invalid secret key.",
+            });
+            setLoading(false);
+            return;
+        }
+        setFormSubmitted('admin');
+        initiateEmailSignUp(auth, adminEmail, adminPassword);
+    } catch (error) {
+        toast({
             variant: "destructive",
             title: "Error",
-            description: "Invalid secret key.",
+            description: "Could not validate secret key. Please try again.",
         });
-        return;
+        setLoading(false);
     }
-    setLoading(true);
-    setFormSubmitted('admin');
-    initiateEmailSignUp(auth, adminEmail, adminPassword);
   }
 
   return (

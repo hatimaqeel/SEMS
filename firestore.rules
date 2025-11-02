@@ -149,6 +149,16 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+     /**
+     * @description Grants admin-only access to application settings.
+     * @path /settings/app
+     * @allow (read, write): Only admins can access settings.
+     * @principle Admin-only configuration management.
+     */
+    match /settings/app {
+      allow read, write: if isAdmin();
+    }
+
     // --- Helper functions ---
     function isSignedIn() {
       return request.auth != null;
@@ -162,12 +172,12 @@ service cloud.firestore {
         return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
     }
     
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
+      return isSignedIn() && getUserData().role == 'admin';
     }
   }
 }

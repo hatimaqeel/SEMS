@@ -356,6 +356,19 @@
         "userDept",
         "status"
       ]
+    },
+    "AppSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AppSettings",
+      "type": "object",
+      "description": "Stores global application settings.",
+      "properties": {
+        "secretKey": {
+          "type": "string",
+          "description": "The secret key required for creating new admin accounts."
+        }
+      },
+      "required": ["secretKey"]
     }
   },
   "auth": {
@@ -524,6 +537,17 @@
               "description": "Unique identifier for the user submitting the request."
             }
           ]
+        }
+      },
+       {
+        "path": "/settings/app",
+        "definition": {
+          "entityName": "AppSettings",
+          "schema": {
+            "$ref": "#/backend/entities/AppSettings"
+          },
+          "description": "Stores global application settings. This is a single document.",
+          "params": []
         }
       }
     ],
