@@ -197,11 +197,11 @@ export default function ManageTeamsPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {event?.teams?.map(team => (
           <Card key={team.teamId} className="flex flex-col">
             <CardHeader className='flex-row items-start justify-between gap-4'>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <CardTitle className="break-words">{team.teamName}</CardTitle>
                 <p className="text-sm text-muted-foreground">{team.department}</p>
               </div>
