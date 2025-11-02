@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -23,17 +23,21 @@ import {
 } from '@/components/ui/select';
 import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { useAuth, useFirestore, useUser } from '@/firebase';
+import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { doc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function SignupPage() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
+  const { user, isUserLoading, userError } = useUser();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
+  const [formSubmitted, setFormSubmitted] = useState<'student' | 'admin' | null>(null);
+
 
   // Student form state
   const [studentName, setStudentName] = useState('');
@@ -52,8 +56,59 @@ export default function SignupPage() {
   const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
   const [secretKey, setSecretKey] = useState('');
 
+  useEffect(() => {
+    if (user && !isUserLoading && formSubmitted) {
+        setLoading(true);
+        let userData;
+        if (formSubmitted === 'student') {
+            userData = {
+                userId: user.uid,
+                displayName: studentName,
+                email: studentEmail,
+                role: 'student',
+                dept: studentDept,
+                registrationNumber: regNumber,
+                gender: studentGender,
+            };
+        } else if (formSubmitted === 'admin') {
+            userData = {
+                userId: user.uid,
+                displayName: adminName,
+                email: adminEmail,
+                role: 'admin',
+                dept: adminDept,
+            };
+        }
 
-  const handleStudentSubmit = async (e: React.FormEvent) => {
+        if (userData) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            setDocumentNonBlocking(userDocRef, userData, { merge: true });
+
+            toast({
+                title: 'Account Created',
+                description: `Your ${formSubmitted} account has been successfully created.`,
+            });
+            router.push('/login');
+        }
+        setLoading(false);
+        setFormSubmitted(null);
+    }
+  }, [user, isUserLoading, formSubmitted, firestore, router, toast, adminName, adminEmail, adminDept, studentName, studentEmail, studentDept, regNumber, studentGender]);
+
+  useEffect(() => {
+    if (userError) {
+        toast({
+            variant: 'destructive',
+            title: 'Signup Failed',
+            description: userError.message || 'An unexpected error occurred.',
+        });
+        setLoading(false);
+        setFormSubmitted(null);
+    }
+  }, [userError, toast]);
+
+
+  const handleStudentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (studentPassword !== studentConfirmPassword) {
       toast({
@@ -64,42 +119,11 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        studentEmail,
-        studentPassword
-      );
-      const user = userCredential.user;
-
-      await setDoc(doc(firestore, 'users', user.uid), {
-        userId: user.uid,
-        displayName: studentName,
-        email: studentEmail,
-        role: 'student',
-        dept: studentDept,
-        registrationNumber: regNumber,
-        gender: studentGender,
-      });
-
-      toast({
-        title: 'Account Created',
-        description: 'Your student account has been successfully created.',
-      });
-      router.push('/login');
-    } catch (error: any) {
-      console.error('Student signup failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Signup Failed',
-        description: error.message || 'An unexpected error occurred.',
-      });
-    } finally {
-      setLoading(false);
-    }
+    setFormSubmitted('student');
+    initiateEmailSignUp(auth, studentEmail, studentPassword);
   };
 
-  const handleAdminSubmit = async (e: React.FormEvent) => {
+  const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (adminPassword !== adminConfirmPassword) {
         toast({
@@ -109,7 +133,6 @@ export default function SignupPage() {
         });
         return;
     }
-    // Simple secret key validation. In a real app, this should be more secure.
     if (secretKey !== 'unisports@cust2025') {
          toast({
             variant: "destructive",
@@ -119,33 +142,8 @@ export default function SignupPage() {
         return;
     }
     setLoading(true);
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-        const user = userCredential.user;
-
-        await setDoc(doc(firestore, "users", user.uid), {
-            userId: user.uid,
-            displayName: adminName,
-            email: adminEmail,
-            role: "admin",
-            dept: adminDept,
-        });
-
-        toast({
-            title: "Account Created",
-            description: "Your admin account has been successfully created.",
-        });
-        router.push("/login");
-    } catch (error: any) {
-        console.error("Admin signup failed:", error);
-        toast({
-            variant: "destructive",
-            title: "Signup Failed",
-            description: error.message || "An unexpected error occurred.",
-        });
-    } finally {
-        setLoading(false);
-    }
+    setFormSubmitted('admin');
+    initiateEmailSignUp(auth, adminEmail, adminPassword);
   }
 
   return (
@@ -177,7 +175,7 @@ export default function SignupPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-dept">Department</Label>
-                <Select onValueChange={setStudentDept} value={studentDept} disabled={loading}>
+                <Select onValueChange={setStudentDept} value={studentDept} disabled={loading} required>
                   <SelectTrigger id="student-dept">
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
@@ -191,7 +189,7 @@ export default function SignupPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-gender">Gender</Label>
-                <Select onValueChange={setStudentGender} value={studentGender} disabled={loading}>
+                <Select onValueChange={setStudentGender} value={studentGender} disabled={loading} required>
                   <SelectTrigger id="student-gender">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>

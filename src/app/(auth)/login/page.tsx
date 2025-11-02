@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -15,10 +15,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useUser, useFirestore } from '@/firebase';
+import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -26,39 +25,48 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const auth = useAuth();
+  const { user, isUserLoading, userError } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Check user role
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.role === 'admin') {
-          router.push('/admin/dashboard');
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      const checkUserRole = async () => {
+        setLoading(true);
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.role === 'admin') {
+            router.push('/admin/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
         } else {
+          // Default redirect if user doc doesn't exist
           router.push('/dashboard');
         }
-      } else {
-        // Default redirect if user doc doesn't exist for some reason
-        router.push('/dashboard');
-      }
-    } catch (error: any) {
-      console.error('Login failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message || 'An unexpected error occurred.',
-      });
-    } finally {
-      setLoading(false);
+        setLoading(false);
+      };
+      checkUserRole();
     }
+  }, [user, isUserLoading, router, firestore]);
+  
+  useEffect(() => {
+    if (userError) {
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: userError.message || 'An unexpected error occurred.',
+        });
+        setLoading(false);
+    }
+  }, [userError, toast]);
+
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    initiateEmailSignIn(auth, email, password);
   };
 
   return (
