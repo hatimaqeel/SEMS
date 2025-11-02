@@ -6,6 +6,7 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import type { LucideIcon } from "lucide-react";
+import { Skeleton } from "../ui/skeleton";
 
 interface StatCardProps {
   title: string;
@@ -22,7 +23,11 @@ export function StatCard({ title, value, icon: Icon, description }: StatCardProp
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        {value === '...' ? (
+          <Skeleton className="h-7 w-12 mt-1 mb-2" />
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
