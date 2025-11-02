@@ -92,3 +92,12 @@ export type JoinRequest = {
   userDept: string;
   status: 'pending' | 'approved' | 'rejected';
 }
+
+export type Bracket = {
+  id: string; // Event ID
+  rounds: {
+    roundIndex: number;
+    roundName: string;
+    matches: Match[];
+  }[];
+};

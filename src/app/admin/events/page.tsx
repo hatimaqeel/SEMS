@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare, Users, Shield } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare, Users, Shield, GitBranch } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -229,6 +229,12 @@ export default function EventsPage() {
                             <Link href={`/admin/events/schedule/${event.id}`}>
                                 <GanttChartSquare className="mr-2 h-4 w-4" />
                                 Manage Schedule
+                            </Link>
+                        </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                            <Link href={`/admin/events/bracket/${event.id}`}>
+                                <GitBranch className="mr-2 h-4 w-4" />
+                                Manage Bracket
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />

@@ -369,6 +369,42 @@
         }
       },
       "required": ["secretKey"]
+    },
+    "Bracket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Bracket",
+      "type": "object",
+      "description": "Represents the tournament bracket for an event.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the bracket, typically the event ID."
+        },
+        "rounds": {
+          "type": "array",
+          "description": "An array of rounds in the tournament.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "roundIndex": {
+                "type": "number",
+                "description": "The index of the round (e.g., 1 for Quarterfinals, 2 for Semifinals)."
+              },
+              "roundName": {
+                "type": "string",
+                "description": "The name of the round (e.g., Quarterfinal, Semifinal, Final)."
+              },
+              "matches": {
+                "type": "array",
+                "description": "A list of match IDs in this round.",
+                "items": { "type": "string" }
+              }
+            },
+            "required": ["roundIndex", "roundName", "matches"]
+          }
+        }
+      },
+      "required": ["id", "rounds"]
     }
   },
   "auth": {
@@ -539,7 +575,7 @@
           ]
         }
       },
-       {
+      {
         "path": "/settings/app",
         "definition": {
           "entityName": "AppSettings",
@@ -548,6 +584,22 @@
           },
           "description": "Stores global application settings. This is a single document.",
           "params": []
+        }
+      },
+      {
+        "path": "/brackets/{eventId}",
+        "definition": {
+          "entityName": "Bracket",
+          "schema": {
+            "$ref": "#/backend/entities/Bracket"
+          },
+          "description": "Stores the tournament bracket structure for a specific event. The document ID is the event ID.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for the event."
+            }
+          ]
         }
       }
     ],

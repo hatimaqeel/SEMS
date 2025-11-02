@@ -12,10 +12,11 @@
  * - /events/{eventId}/matches/{matchId}: Data about matches scheduled for events.
  * - /users/{userId}: Private user profile data.
  * - /events/{eventId}/logs/{logId}: Log entries for events.
+ * - /brackets/{eventId}: Tournament bracket data for an event.
  *
  * Key Security Decisions:
  * - Users can read and write their own profile data.
- * - Admins can create, update, and delete sports, venues, departments, and events.
+ * - Admins can create, update, and delete sports, venues, departments, events, and brackets.
  * - All sports, venues, departments, and events are publicly readable.
  * - Teams and Matches are scoped to specific events. Creation, modification, and deletion of teams and matches is not supported and therefore denied.
  *
@@ -24,6 +25,7 @@
  * - Venues: Public read, admin write.
  * - Departments: Public read, admin write.
  * - Events: Public read, admin write. Students can create their own join request.
+ * - Brackets: Public read, admin write.
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
  * - Users: Owner-only access for read/write. Admin can list all users.
@@ -119,6 +121,18 @@ service cloud.firestore {
     match /events/{eventId}/matches/{matchId} {
       allow get, list: if true;
       allow create, update, delete: if false;
+    }
+    
+    /**
+     * @description Grants public read access to bracket data. Write access is for admins.
+     * @path /brackets/{eventId}
+     * @allow (get, list): Any user can read bracket data.
+     * @allow (create, update, delete): Admins can manage brackets.
+     * @principle Public read, admin write.
+     */
+    match /brackets/{eventId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
