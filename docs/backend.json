@@ -1,0 +1,445 @@
+{
+  "entities": {
+    "Sport": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sport",
+      "type": "object",
+      "description": "Represents a sport in the UniSport Central system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the sport entity."
+        },
+        "sportName": {
+          "type": "string",
+          "description": "The name of the sport (e.g., Cricket, Football)."
+        },
+        "teamSize": {
+          "type": "number",
+          "description": "The default team size for the sport."
+        },
+        "defaultDurationMinutes": {
+          "type": "number",
+          "description": "The default duration of a match in minutes for the sport."
+        }
+      },
+      "required": [
+        "id",
+        "sportName",
+        "teamSize",
+        "defaultDurationMinutes"
+      ]
+    },
+    "Venue": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Venue",
+      "type": "object",
+      "description": "Represents a venue where sports events are held.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the venue entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the venue (e.g., Main Ground)."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the venue."
+        },
+        "capacity": {
+          "type": "number",
+          "description": "The capacity of the venue."
+        },
+        "reservations": {
+          "type": "array",
+          "description": "A list of reservations for the venue.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "location",
+        "capacity",
+        "reservations"
+      ]
+    },
+    "Event": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Event",
+      "type": "object",
+      "description": "Represents a sports event or tournament.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the event entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the event."
+        },
+        "sportType": {
+          "type": "string",
+          "description": "The type of sport for the event."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department hosting the event."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the event.",
+          "format": "date-time"
+        },
+        "durationDays": {
+          "type": "number",
+          "description": "The duration of the event in days."
+        },
+        "settings": {
+          "type": "string",
+          "description": "The settings for the event."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the event."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "sportType",
+        "department",
+        "startDate",
+        "durationDays",
+        "settings",
+        "status"
+      ]
+    },
+    "Team": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Team",
+      "type": "object",
+      "description": "Represents a team participating in an event.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the team entity."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to Event. (Relationship: Event 1:N Team)"
+        },
+        "teamName": {
+          "type": "string",
+          "description": "The name of the team."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department the team belongs to."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the team."
+        },
+        "sportType": {
+          "type": "string",
+          "description": "The type of sport the team plays."
+        },
+        "preferredVenues": {
+          "type": "array",
+          "description": "A list of preferred venues for the team.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Additional metadata about the team."
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "teamName",
+        "department",
+        "status",
+        "sportType",
+        "preferredVenues",
+        "metadata"
+      ]
+    },
+    "Match": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Match",
+      "type": "object",
+      "description": "Represents a match between two teams in an event.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the match entity."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to Event. (Relationship: Event 1:N Match)"
+        },
+        "teamAId": {
+          "type": "string",
+          "description": "Reference to Team. (Relationship: Team 1:N Match as Team A)"
+        },
+        "teamBId": {
+          "type": "string",
+          "description": "Reference to Team. (Relationship: Team 1:N Match as Team B)"
+        },
+        "sportType": {
+          "type": "string",
+          "description": "The type of sport for the match."
+        },
+        "venueId": {
+          "type": "string",
+          "description": "Reference to Venue. (Relationship: Venue 1:N Match)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The start time of the match.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The end time of the match.",
+          "format": "date-time"
+        },
+        "round": {
+          "type": "number",
+          "description": "The round of the match in the tournament."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the match."
+        },
+        "winnerTeamId": {
+          "type": "string",
+          "description": "Reference to Team. (Relationship: Team 1:N Match as Winner)"
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "teamAId",
+        "teamBId",
+        "sportType",
+        "venueId",
+        "startTime",
+        "endTime",
+        "round",
+        "status",
+        "winnerTeamId"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the UniSport Central system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user (admin, coordinator, referee, student)."
+        },
+        "dept": {
+          "type": "string",
+          "description": "The department the user belongs to."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "role",
+        "dept",
+        "email"
+      ]
+    },
+    "Log": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Log",
+      "type": "object",
+      "description": "Represents a log entry for an event.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the log entry."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to Event. (Relationship: Event 1:N Log)"
+        },
+        "message": {
+          "type": "string",
+          "description": "The log message."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The timestamp of the log entry.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "message",
+        "timestamp"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/sports/{sportId}",
+        "definition": {
+          "entityName": "Sport",
+          "schema": {
+            "$ref": "#/backend/entities/Sport"
+          },
+          "description": "Stores details about each sport, such as name, team size, and default duration.",
+          "params": [
+            {
+              "name": "sportId",
+              "description": "Unique identifier for the sport."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/venues/{venueId}",
+        "definition": {
+          "entityName": "Venue",
+          "schema": {
+            "$ref": "#/backend/entities/Venue"
+          },
+          "description": "Stores information about each venue, including name, location, capacity, and reservations.",
+          "params": [
+            {
+              "name": "venueId",
+              "description": "Unique identifier for the venue."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}",
+        "definition": {
+          "entityName": "Event",
+          "schema": {
+            "$ref": "#/backend/entities/Event"
+          },
+          "description": "Stores details about each event, including name, sport type, department, start date, and settings.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for the event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/teams/{teamId}",
+        "definition": {
+          "entityName": "Team",
+          "schema": {
+            "$ref": "#/backend/entities/Team"
+          },
+          "description": "Stores team information for a specific event. Includes denormalized 'eventId' to maintain authorization independence.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for the event."
+            },
+            {
+              "name": "teamId",
+              "description": "Unique identifier for the team."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/matches/{matchId}",
+        "definition": {
+          "entityName": "Match",
+          "schema": {
+            "$ref": "#/backend/entities/Match"
+          },
+          "description": "Stores match details for a specific event. Includes denormalized 'eventId' to maintain authorization independence.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for the event."
+            },
+            {
+              "name": "matchId",
+              "description": "Unique identifier for the match."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information, including display name, role, department, and email.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/logs/{logId}",
+        "definition": {
+          "entityName": "Log",
+          "schema": {
+            "$ref": "#/backend/entities/Log"
+          },
+          "description": "Stores log entries for specific events, including messages and timestamps.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for the event."
+            },
+            {
+              "name": "logId",
+              "description": "Unique identifier for the log entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support a sports event management system, UniSport Central, with a focus on clear authorization, scalability, and maintainability. Authorization Independence is achieved by denormalizing role information into user documents and event-specific access control lists within each event's subcollections where needed. Path-based ownership is used for user-specific data, such as user profiles. For collaborative data like events and matches, a membership map (`members`) is used where appropriate. This structure avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging. Segregation of data based on access needs (e.g., public events versus admin-managed events) simplifies security rules. QAPs are supported through structural segregation and controlled access via role-based permissions. For example, only admins can `create`, `update`, or `delete` events, while users can `read` public event data and, in some cases, create teams or register for events if their role permits."
+  }
+}
