@@ -74,7 +74,7 @@ service cloud.firestore {
      * @path /events/{eventId}
      * @allow (get, list): Any user can read event data.
      * @allow (create, delete): Admins can create and delete events.
-     * @allow (update): Admins can update any field. Signed-in users can add their own join request.
+     * @allow (update): Admins can update any field. Signed-in users can update only the 'joinRequests' field.
      * @principle Public read, admin write, specific field update for users.
      */
     match /events/{eventId} {
@@ -82,11 +82,7 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (
         isSignedIn() &&
-        request.resource.data.keys().hasOnly(['joinRequests']) &&
-        request.resource.data.joinRequests is list &&
-        request.resource.data.joinRequests.size() == resource.data.joinRequests.size() + 1 &&
-        request.resource.data.joinRequests[-1].userId == request.auth.uid &&
-        request.resource.data.joinRequests[-1].status == 'pending'
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joinRequests'])
       );
     }
 
