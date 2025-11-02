@@ -60,7 +60,15 @@ const prompt = ai.definePrompt({
   output: {schema: OptimizeScheduleWithAIOutputSchema},
   prompt: `You are an AI scheduling assistant for university sports events.
 
-  Given the following information about an event, optimize the match schedule considering venue availability, team preferences, and time constraints.
+  Your primary task is to optimize the match schedule. You must strictly adhere to the following rules:
+
+  1.  **Venue Conflict Validation:** A venue can only host one match at a time. Do not schedule two matches in the same venue if their time slots overlap, regardless of the sport or event.
+  2.  **Time Constraints:** All matches must be scheduled within the overall earliest start time and latest end time.
+  3.  **Match Duration:** Use the default duration for the given sport to calculate the end time for each match.
+  4.  **Team Preferences:** Prioritize assigning teams to their preferred venues where possible, but avoiding conflicts is more important.
+  5.  **Efficiency:** Create the most compact and efficient schedule possible.
+
+  Given the following information about an event, optimize the match schedule.
   Provide a reasoning for the schedule optimization and return the optimized match schedule.
 
   Event ID: {{{eventId}}}
@@ -83,7 +91,7 @@ const prompt = ai.definePrompt({
 
   Matches:
   {{#each matches}}
-    Match ID: {{{matchId}}}, Team A: {{{teamAId}}}, Team B: {{{teamBId}}}, Sport Type: {{{sportType}}}, Venue ID: {{{venueId}}}, Start Time: {{{startTime}}}, End Time: {{{endTime}}}
+    Match ID: {{{matchId}}}, Team A: {{{teamAId}}}, Team B: {{{teamBId}}}, Sport Type: {{{sportType}}}
   {{/each}}
 
   Sports:
@@ -94,9 +102,10 @@ const prompt = ai.definePrompt({
   Return the optimized schedule in the following JSON format:
   {{json optimizedMatches}}
 
-  Also, include a reasoning for the schedule optimization in the reasoning field.
+  Also, include a detailed reasoning for the schedule optimization in the reasoning field, explaining how you handled venue assignments and avoided conflicts.
   `,
 });
+
 
 const optimizeScheduleWithAIFlow = ai.defineFlow(
   {

@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { doc, collection, updateDoc } from 'firebase/firestore';
-import type { Event, Team, Venue, Sport, Match } from '@/lib/types';
+import type { Event, Team, Venue, Sport, Match, Bracket } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,10 +16,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertTriangle, Bot, Loader, Calendar, Clock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-function generatePairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
+function generateRoundRobinPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
     const pairs: { teamAId: string, teamBId: string }[] = [];
+    if (teams.length < 2) return pairs;
+
     for (let i = 0; i < teams.length; i++) {
         for (let j = i + 1; j < teams.length; j++) {
+            // Optional: Avoid teams from the same department if setting requires it
+            // if (!allowSameDeptMatches && teams[i].department === teams[j].department) continue;
             pairs.push({ teamAId: teams[i].teamId, teamBId: teams[j].teamId });
         }
     }
@@ -59,16 +64,26 @@ export default function SchedulePage() {
     setGenerationError(null);
 
     const approvedTeams = event.teams.filter(team => team.status === 'approved');
-    const uniqueDepartments = new Set(approvedTeams.map(team => team.department.toLowerCase().trim()));
+    if (approvedTeams.length < 2) {
+        setGenerationError('Scheduling requires at least two approved teams.');
+        setIsGenerating(false);
+        return;
+    }
 
+    // Unique Department Validation
+    const uniqueDepartments = new Set(approvedTeams.map(team => team.department.toLowerCase().trim()));
     if (uniqueDepartments.size < 2) {
-      setGenerationError('Scheduling requires teams from at least two different departments.');
+      setGenerationError('Scheduling requires teams from at least two different departments to generate a bracket.');
       setIsGenerating(false);
       return;
     }
     
-    // For now, let's create a simple round-robin pairing.
-    const teamPairs = generatePairs(approvedTeams);
+    const teamPairs = generateRoundRobinPairs(approvedTeams);
+    if(teamPairs.length === 0) {
+        setGenerationError('Could not generate any match pairs. Check your teams.');
+        setIsGenerating(false);
+        return;
+    }
 
     const matchesToSchedule = teamPairs.map((pair, index) => ({
         matchId: `m${index + 1}`,
@@ -78,7 +93,6 @@ export default function SchedulePage() {
 
     try {
         const venueAvailability = venues.reduce((acc, venue) => {
-            // Placeholder: Assume venues are available from 9am to 9pm for the event duration
             const availability = [];
             const eventStartDate = new Date(event.startDate);
             for (let i = 0; i < (event.durationDays || 1); i++) {
@@ -94,7 +108,7 @@ export default function SchedulePage() {
         }, {} as Record<string, {startTime: string, endTime: string}[]>);
 
         const teamPreferences = approvedTeams.reduce((acc, team) => {
-            acc[team.teamId] = team.preferredVenues;
+            acc[team.teamId] = team.preferredVenues || [];
             return acc;
         }, {} as Record<string, string[]>);
 
@@ -115,29 +129,57 @@ export default function SchedulePage() {
         matches: matchesToSchedule,
         sports: sportsData,
       });
-
-      const updatedMatches = result.optimizedMatches.map((match, index) => {
-        const originalMatch = matchesToSchedule.find(m => m.matchId === match.matchId);
+      
+      const allMatches: Match[] = result.optimizedMatches.map((match, index) => {
+        const originalMatch = matchesToSchedule.find(m => m.matchId === match.matchId)!;
         return {
             ...match,
-            teamAId: originalMatch!.teamAId,
-            teamBId: originalMatch!.teamBId,
-            sportType: event.sportType,
-            round: 1, // Simplified
+            ...originalMatch,
+            round: 1, // All initial matches are round 1
             status: 'scheduled' as const,
         };
       });
 
-      await updateDoc(eventRef, { matches: updatedMatches });
+      // Update event with the full schedule of matches
+      await updateDoc(eventRef, { matches: allMatches });
+      
+      // Now, generate and store the bracket
+      const bracketRef = doc(firestore, 'brackets', eventId);
+      const newBracket: Bracket = {
+        id: eventId,
+        rounds: [{
+            roundIndex: 1,
+            roundName: `Round 1`, // Or "Group Stage"
+            matches: allMatches.map(m => m.matchId)
+        }]
+      };
+      
+      // Add subsequent empty rounds for a single-elimination tournament
+      let numTeams = approvedTeams.length;
+      let numRounds = Math.ceil(Math.log2(numTeams));
+      for(let i=2; i<=numRounds; i++){
+          let roundName = "Round " + i;
+          if(i === numRounds) roundName = "Final";
+          if(i === numRounds-1) roundName = "Semifinals";
+          if(i === numRounds-2 && numTeams > 4) roundName = "Quarterfinals";
+          
+          newBracket.rounds.push({
+              roundIndex: i,
+              roundName: roundName,
+              matches: []
+          })
+      }
+
+      setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
 
       toast({
-        title: 'Schedule Generated',
-        description: 'The match schedule has been successfully created by the AI assistant.',
+        title: 'Schedule & Bracket Generated',
+        description: 'The match schedule and initial bracket have been created by the AI assistant.',
       });
 
     } catch (error: any) {
       console.error(error);
-      setGenerationError(`AI Schedule Generation Failed: ${error.message}`);
+      setGenerationError(`AI Generation Failed: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -160,7 +202,7 @@ export default function SchedulePage() {
         title={`Schedule for ${event.name}`}
         description={`Manage and view the match schedule for this event.`}
       >
-        <Button onClick={handleGenerateSchedule} disabled={isGenerating}>
+        <Button onClick={handleGenerateSchedule} disabled={isGenerating || (event.matches && event.matches.length > 0)}>
           {isGenerating ? (
             <>
               <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -169,7 +211,7 @@ export default function SchedulePage() {
           ) : (
             <>
               <Bot className="mr-2 h-4 w-4" />
-              Generate Schedule
+              Generate Schedule & Bracket
             </>
           )}
         </Button>
@@ -187,7 +229,7 @@ export default function SchedulePage() {
         <CardHeader>
           <CardTitle>Match Schedule</CardTitle>
           <CardDescription>
-            {event.matches?.length > 0 ? `Showing ${event.matches.length} scheduled matches.` : 'No matches scheduled yet. Click "Generate Schedule" to begin.'}
+            {event.matches?.length > 0 ? `Showing ${event.matches.length} scheduled matches.` : 'No matches scheduled yet. Click "Generate Schedule & Bracket" to begin.'}
           </CardDescription>
         </CardHeader>
         <CardContent>

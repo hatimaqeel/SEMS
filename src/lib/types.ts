@@ -98,6 +98,6 @@ export type Bracket = {
   rounds: {
     roundIndex: number;
     roundName: string;
-    matches: Match[];
+    matches: string[]; // This will now store match IDs
   }[];
 };
