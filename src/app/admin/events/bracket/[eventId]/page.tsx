@@ -119,123 +119,56 @@ export default function BracketPage() {
   };
   
   const confirmWinner = async () => {
-    if (!selectedMatch || !event || !bracket || !venues || !sports) return;
-  
+    if (!selectedMatch || !event || !bracket) return;
+
     const { match, winner } = selectedMatch;
-    const eventDocRef = doc(firestore, 'events', eventId);
-  
-    let updatedMatches = [...event.matches];
-  
+    const eventDocRef = doc(firestore, "events", eventId);
+    
+    // Create a mutable copy of the matches array
+    const updatedMatches = event.matches.map(m => ({ ...m }));
+
     const currentMatchIndex = updatedMatches.findIndex(m => m.matchId === match.matchId);
     if (currentMatchIndex !== -1) {
-      updatedMatches[currentMatchIndex] = {
-        ...updatedMatches[currentMatchIndex],
-        winnerTeamId: winner.teamId,
-        status: 'completed' as const
-      };
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not find the match to update.'});
-        setIsAlertOpen(false);
-        return;
+        updatedMatches[currentMatchIndex].winnerTeamId = winner.teamId;
+        updatedMatches[currentMatchIndex].status = 'completed';
     }
-  
-    // --- Knockout Winner Progression Logic ---
+
     if (event.settings.format === 'knockout') {
-      const currentRound = bracket.rounds.find(r => r.matches.includes(match.matchId));
-      if (!currentRound) {
-          setIsAlertOpen(false); return;
-      }
-      const matchIndexInRound = currentRound.matches.indexOf(match.matchId);
-      const isFinalMatch = currentRound.roundIndex === bracket.rounds.length -1;
+        const currentRound = bracket.rounds.find(r => r.matches.includes(match.matchId));
+        if (currentRound) {
+            const nextRoundIndex = currentRound.roundIndex + 1;
+            const nextRound = bracket.rounds.find(r => r.roundIndex === nextRoundIndex);
 
-      // If it's the final match, update event status
-      if (isFinalMatch) {
-          try {
-              await updateDoc(eventDocRef, { 
-                  matches: updatedMatches,
-                  status: 'completed'
-              });
-              toast({ title: "Tournament Over", description: `${winner.teamName} is the champion!` });
-          } catch(e) {
-             toast({ variant: "destructive", title: "Error completing tournament", description: (e as Error).message });
-          }
-          setIsAlertOpen(false);
-          return;
-      }
+            if (nextRound) {
+                const matchIndexInRound = currentRound.matches.indexOf(match.matchId);
+                const nextMatchIndexInNextRound = Math.floor(matchIndexInRound / 2);
+                const nextMatchId = nextRound.matches[nextMatchIndexInNextRound];
+                
+                const nextMatchIndexInEvent = updatedMatches.findIndex(m => m.matchId === nextMatchId);
 
-      // Not the final match, so find the next match to advance to
-      const nextRoundIndex = currentRound.roundIndex + 1;
-      const nextRound = bracket.rounds.find(r => r.roundIndex === nextRoundIndex);
-      if (nextRound) {
-        const nextMatchIndexInNextRound = Math.floor(matchIndexInRound / 2);
-        const nextMatchId = nextRound.matches[nextMatchIndexInNextRound];
-        const nextMatchIndexInEvent = updatedMatches.findIndex(m => m.matchId === nextMatchId);
-        
-        if (nextMatchIndexInEvent !== -1) {
-          const teamSlotToUpdate = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
-          updatedMatches[nextMatchIndexInEvent][teamSlotToUpdate] = winner.teamId;
-
-          const nextMatch = updatedMatches[nextMatchIndexInEvent];
-
-          // If both teams for the next match are now decided, schedule it
-          if (nextMatch.teamAId !== 'TBD' && nextMatch.teamBId !== 'TBD') {
-              try {
-                  const venueAvailability = venues.reduce((acc, venue) => {
-                      acc[venue.id!] = [{
-                          startTime: new Date(new Date(event.startDate).setHours(9,0,0,0)).toISOString(),
-                          endTime: new Date(new Date(event.startDate).setHours(22,0,0,0)).toISOString(),
-                      }];
-                      return acc;
-                  }, {} as Record<string, {startTime: string, endTime: string}[]>);
-
-                  const sportsData = sports.reduce((acc, sport) => {
-                      acc[sport.sportName] = { defaultDurationMinutes: sport.defaultDurationMinutes };
-                      return acc;
-                  }, {} as Record<string, {defaultDurationMinutes: number}>);
-                  
-                  const aiResult = await optimizeScheduleWithAI({
-                      eventId: event.eventId,
-                      venueAvailability,
-                      teamPreferences: {},
-                      timeConstraints: {
-                          earliestStartTime: new Date().toISOString(),
-                          latestEndTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                      },
-                      matches: [{...nextMatch, sportType: event.sportType}],
-                      sports: sportsData
-                  });
-                  
-                  const scheduledMatch = aiResult.optimizedMatches[0];
-                  if (scheduledMatch) {
-                      updatedMatches[nextMatchIndexInEvent].startTime = scheduledMatch.startTime;
-                      updatedMatches[nextMatchIndexInEvent].endTime = scheduledMatch.endTime;
-                      updatedMatches[nextMatchIndexInEvent].venueId = scheduledMatch.venueId;
-                  }
-              } catch (aiError) {
-                  console.error("AI Scheduling for next round failed:", aiError);
-                  toast({ variant: "destructive", title: "AI Scheduling Failed", description: "Could not automatically schedule the next match." });
-              }
-          }
+                if (nextMatchIndexInEvent !== -1) {
+                    const teamSlotToUpdate = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
+                    updatedMatches[nextMatchIndexInEvent][teamSlotToUpdate] = winner.teamId;
+                }
+            }
         }
-      }
     }
-  
-    // Atomically update the event document
+    
     try {
-      await updateDoc(eventDocRef, { matches: updatedMatches });
-      toast({
-        title: "Winner Declared",
-        description: `${winner.teamName} advances to the next round.`
-      });
+        await updateDoc(eventDocRef, { matches: updatedMatches });
+        toast({
+            title: "Winner Declared",
+            description: `${winner.teamName} advances.`
+        });
     } catch (e: any) {
-      toast({
-        variant: "destructive",
-        title: "Error updating match",
-        description: e.message || "Could not update the match result."
-      });
+        toast({
+            variant: "destructive",
+            title: "Error updating match",
+            description: e.message
+        });
     } finally {
-      setIsAlertOpen(false);
-      setSelectedMatch(null);
+        setIsAlertOpen(false);
+        setSelectedMatch(null);
     }
   };
 
