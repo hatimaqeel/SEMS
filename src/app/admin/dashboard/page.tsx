@@ -8,12 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Activity, Calendar, MapPin, Users, Trophy } from 'lucide-react';
-import { OverviewChart } from '@/components/admin/OverviewChart';
+import { Calendar, MapPin, Users, Trophy } from 'lucide-react';
 import { StatCard } from '@/components/admin/StatCard';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Event, Venue, User, Sport } from '@/lib/types';
+import { VictoriesByDepartmentChart } from '@/components/admin/VictoriesByDepartmentChart';
+import { useMemo } from 'react';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -43,6 +44,32 @@ export default function DashboardPage() {
     useCollection<User>(usersRef);
   const { data: sports, isLoading: isLoadingSports } =
     useCollection<Sport>(sportsRef);
+
+  const victoriesData = useMemo(() => {
+    if (!events) return [];
+
+    const victoriesByDept: { [key: string]: number } = {};
+
+    events.forEach(event => {
+      const completedMatches = event.matches.filter(
+        match => match.status === 'completed' && match.winnerTeamId
+      );
+
+      completedMatches.forEach(match => {
+        const winningTeam = event.teams.find(
+          team => team.teamId === match.winnerTeamId
+        );
+        if (winningTeam && winningTeam.department) {
+          victoriesByDept[winningTeam.department] =
+            (victoriesByDept[winningTeam.department] || 0) + 1;
+        }
+      });
+    });
+
+    return Object.entries(victoriesByDept)
+      .map(([name, victories]) => ({ name, victories }))
+      .sort((a, b) => b.victories - a.victories);
+  }, [events]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,13 +110,16 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
-            <CardTitle>Events Overview</CardTitle>
+            <CardTitle>Department Victories</CardTitle>
             <CardDescription>
-              A chart showing the number of teams in recent events.
+              A chart showing which department has the most victories across all events.
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <OverviewChart events={events} isLoading={isLoadingEvents} />
+            <VictoriesByDepartmentChart
+              data={victoriesData}
+              isLoading={isLoadingEvents}
+            />
           </CardContent>
         </Card>
       </div>
