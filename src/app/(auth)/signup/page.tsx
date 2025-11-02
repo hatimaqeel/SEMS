@@ -110,7 +110,7 @@ export default function SignupPage() {
         return;
     }
     // Simple secret key validation. In a real app, this should be more secure.
-    if (secretKey !== 'secret') {
+    if (secretKey !== 'unisports@cust2025') {
          toast({
             variant: "destructive",
             title: "Error",
