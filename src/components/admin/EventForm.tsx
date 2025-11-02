@@ -117,7 +117,7 @@ export function EventForm({
                   </FormControl>
                   <SelectContent>
                     {sports.map(sport => (
-                      <SelectItem key={sport.id} value={sport.sportName}>
+                      <SelectItem key={sport.sportId} value={sport.sportName}>
                         {sport.sportName}
                       </SelectItem>
                     ))}
@@ -141,7 +141,7 @@ export function EventForm({
                   </FormControl>
                   <SelectContent>
                     {departments.map(dept => (
-                      <SelectItem key={dept.id} value={dept.name}>
+                      <SelectItem key={dept.departmentId} value={dept.name}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -167,7 +167,7 @@ export function EventForm({
                 </FormControl>
                 <SelectContent>
                   {venues.map(venue => (
-                    <SelectItem key={venue.id} value={venue.id}>
+                    <SelectItem key={venue.venueId} value={venue.venueId}>
                       {venue.name}
                     </SelectItem>
                   ))}
