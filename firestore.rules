@@ -26,7 +26,7 @@
  * - Events: Public read, admin write. Students can create their own join request.
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
- * - Users: Owner-only access.
+ * - Users: Owner-only access for read/write. Admin can list all users.
  * - Logs: Event-scoped access.
  */
 rules_version = '2';
@@ -127,12 +127,14 @@ service cloud.firestore {
      * @allow (read): User can read their own profile.
      * @allow (create): A newly signed up user can create their own profile.
      * @allow (update, delete): User can update/delete their own profile if it exists.
-     * @principle Enforces document ownership.
+     * @allow (list): Admins can list all users.
+     * @principle Enforces document ownership and admin read.
      */
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId);
       allow update, delete: if isExistingOwner(userId);
+      allow list: if isAdmin();
     }
 
     /**
