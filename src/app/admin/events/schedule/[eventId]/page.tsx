@@ -20,19 +20,25 @@ function generateKnockoutPairs(teams: Team[]): { teamAId: string, teamBId: strin
     const pairs: { teamAId: string, teamBId: string }[] = [];
     if (teams.length < 2) return pairs;
 
-    // Shuffle teams to randomize pairings
     const shuffledTeams = [...teams].sort(() => 0.5 - Math.random());
 
-    // Pair teams up
     for (let i = 0; i < shuffledTeams.length; i += 2) {
         if (shuffledTeams[i + 1]) {
             pairs.push({ teamAId: shuffledTeams[i].teamId, teamBId: shuffledTeams[i + 1].teamId });
         }
     }
-    // Note: If there's an odd number of teams, one team will not be paired.
-    // A more advanced implementation might give one team a "bye" to the next round.
-    // For now, we'll only schedule pairs.
     return pairs;
+}
+
+function generateRoundRobinPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
+  const pairs: { teamAId: string, teamBId: string }[] = [];
+  if (teams.length < 2) return pairs;
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      pairs.push({ teamAId: teams[i].teamId, teamBId: teams[j].teamId });
+    }
+  }
+  return pairs;
 }
 
 
@@ -77,14 +83,19 @@ export default function SchedulePage() {
     }
 
     // Unique Department Validation
-    const uniqueDepartments = new Set(approvedTeams.map(team => team.department.toLowerCase().trim()));
-    if (uniqueDepartments.size < 2) {
-      setGenerationError('Scheduling requires teams from at least two different departments to generate a bracket.');
-      setIsGenerating(false);
-      return;
+    if (event.settings.format === 'knockout') {
+      const uniqueDepartments = new Set(approvedTeams.map(team => team.department.toLowerCase().trim()));
+      if (uniqueDepartments.size < 2) {
+        setGenerationError('Knockout scheduling requires teams from at least two different departments to generate a bracket.');
+        setIsGenerating(false);
+        return;
+      }
     }
     
-    const teamPairs = generateKnockoutPairs(approvedTeams);
+    const teamPairs = event.settings.format === 'knockout'
+      ? generateKnockoutPairs(approvedTeams)
+      : generateRoundRobinPairs(approvedTeams);
+
     if(teamPairs.length === 0) {
         setGenerationError('Could not generate any match pairs. Check your teams.');
         setIsGenerating(false);
@@ -147,7 +158,7 @@ export default function SchedulePage() {
       });
 
       // Update event with the full schedule of matches
-      await updateDoc(eventRef, { matches: allMatches });
+      await updateDoc(eventRef, { matches: allMatches, status: 'ongoing' });
       
       // Now, generate and store the bracket
       const bracketRef = doc(firestore, 'brackets', eventId);
@@ -155,32 +166,34 @@ export default function SchedulePage() {
         id: eventId,
         rounds: [{
             roundIndex: 1,
-            roundName: `Round 1`, // Or "Group Stage"
+            roundName: event.settings.format === 'knockout' ? `Round 1` : 'All Matches',
             matches: allMatches.map(m => m.matchId)
         }]
       };
       
-      // Add subsequent empty rounds for a single-elimination tournament
-      let numTeams = approvedTeams.length;
-      let numRounds = Math.ceil(Math.log2(numTeams));
-      for(let i=2; i<=numRounds; i++){
-          let roundName = "Round " + i;
-          if(i === numRounds) roundName = "Final";
-          if(i === numRounds-1) roundName = "Semifinals";
-          if(i === numRounds-2 && numTeams > 4) roundName = "Quarterfinals";
-          
-          newBracket.rounds.push({
-              roundIndex: i,
-              roundName: roundName,
-              matches: []
-          })
+      // For knockout, add empty future rounds
+      if (event.settings.format === 'knockout') {
+        let numTeams = approvedTeams.length;
+        let numRounds = Math.ceil(Math.log2(numTeams));
+        for(let i=2; i<=numRounds; i++){
+            let roundName = "Round " + i;
+            if(i === numRounds) roundName = "Final";
+            if(i === numRounds-1 && numTeams >= 4) roundName = "Semifinals";
+            if(i === numRounds-2 && numTeams >= 8) roundName = "Quarterfinals";
+            
+            newBracket.rounds.push({
+                roundIndex: i,
+                roundName: roundName,
+                matches: [] // Initially empty
+            })
+        }
       }
 
       setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
 
       toast({
         title: 'Schedule & Bracket Generated',
-        description: 'The match schedule and initial bracket have been created by the AI assistant.',
+        description: `The match schedule and initial bracket for the ${event.settings.format} tournament have been created.`,
       });
 
     } catch (error: any) {
@@ -235,7 +248,7 @@ export default function SchedulePage() {
         <CardHeader>
           <CardTitle>Match Schedule</CardTitle>
           <CardDescription>
-            {event.matches?.length > 0 ? `Showing ${event.matches.length} scheduled matches.` : 'No matches scheduled yet. Click "Generate Schedule & Bracket" to begin.'}
+            {event.matches?.length > 0 ? `Showing ${event.matches.length} scheduled matches for this ${event.settings.format} tournament.` : 'No matches scheduled yet. Click "Generate Schedule & Bracket" to begin.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -286,5 +299,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    

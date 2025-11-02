@@ -33,6 +33,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Event, Sport, Venue, Department } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Event name must be at least 2 characters.'),
@@ -46,6 +47,7 @@ const formSchema = z.object({
   }, 'Event date cannot be in the past.'),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
   description: z.string().min(10, 'Description must be at least 10 characters.').max(200, 'Description cannot exceed 200 characters.'),
+  format: z.enum(['knockout', 'round-robin'], { required_error: 'Please select a tournament format.'}),
 });
 
 export type EventFormValues = z.infer<typeof formSchema>;
@@ -73,6 +75,7 @@ export function EventForm({
       ? {
           ...initialData,
           startDate: new Date(initialData.startDate),
+          format: initialData.settings.format,
         }
       : {
           name: '',
@@ -82,6 +85,7 @@ export function EventForm({
           startDate: undefined,
           startTime: '',
           description: '',
+          format: 'knockout',
         },
   });
 
@@ -237,6 +241,42 @@ export function EventForm({
                 )}
             />
         </div>
+        
+        <FormField
+          control={form.control}
+          name="format"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel>Tournament Format</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="flex flex-col space-y-1"
+                >
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="knockout" />
+                    </FormControl>
+                    <FormLabel className="font-normal">
+                      Knockout (Single Elimination)
+                    </FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="round-robin" />
+                    </FormControl>
+                    <FormLabel className="font-normal">
+                      Round Robin (All-Play-All)
+                    </FormLabel>
+                  </FormItem>
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
 
         <FormField
           control={form.control}

@@ -112,7 +112,11 @@ export default function EventsPage() {
       description: values.description,
       status: 'upcoming' as const,
       durationDays: 1, // Default value, can be expanded later
-      settings: { format: 'knockout' as const, restMinutes: 30, allowSameDeptMatches: false }, // Default values
+      settings: { 
+        format: values.format,
+        restMinutes: 30, 
+        allowSameDeptMatches: false 
+      },
       teams: selectedEvent?.teams || [],
       matches: selectedEvent?.matches || [],
     };
