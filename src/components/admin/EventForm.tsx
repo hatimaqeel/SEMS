@@ -45,7 +45,7 @@ const formSchema = z.object({
     return date >= today;
   }, 'Event date cannot be in the past.'),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
-  description: z.string().min(10, 'Description must be at least 10 characters.'),
+  description: z.string().min(10, 'Description must be at least 10 characters.').max(200, 'Description cannot exceed 200 characters.'),
 });
 
 export type EventFormValues = z.infer<typeof formSchema>;
@@ -132,7 +132,7 @@ export function EventForm({
             name="department"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Department</FormLabel>
+                <FormLabel>Organizing Department</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -140,8 +140,9 @@ export function EventForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                     <SelectItem value="All Departments">All Departments</SelectItem>
                     {departments.map(dept => (
-                      <SelectItem key={dept.departmentId} value={dept.name}>
+                      <SelectItem key={dept.id} value={dept.name}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -167,7 +168,7 @@ export function EventForm({
                 </FormControl>
                 <SelectContent>
                   {venues.map(venue => (
-                    <SelectItem key={venue.venueId} value={venue.venueId}>
+                    <SelectItem key={venue.id} value={venue.id!}>
                       {venue.name}
                     </SelectItem>
                   ))}
@@ -250,6 +251,9 @@ export function EventForm({
                   {...field}
                 />
               </FormControl>
+               <FormDescription>
+                A brief, engaging description for the event. (Max 200 characters)
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

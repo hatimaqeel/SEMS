@@ -5,8 +5,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { collection, doc } from "firebase/firestore";
+import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { collection, doc, setDoc } from "firebase/firestore";
 import type { Event, Sport, Venue, Department } from "@/lib/types";
 import {
   Table,
@@ -49,6 +49,7 @@ import {
 import { EventForm, type EventFormValues } from "@/components/admin/EventForm";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function EventsPage() {
   const router = useRouter();
@@ -100,39 +101,53 @@ export default function EventsPage() {
 
   const handleFormSubmit = async (values: EventFormValues) => {
     setIsSubmitting(true);
+
     const eventData = {
-        ...values,
-        startDate: values.startDate.toISOString().split('T')[0], // format to 'YYYY-MM-DD'
-        status: 'upcoming' as const,
-        durationDays: 1, // Default value, can be expanded later
-        settings: { format: 'knockout' as const, restMinutes: 30, allowSameDeptMatches: false }, // Default values
-        teams: selectedEvent?.teams || [],
-        matches: selectedEvent?.matches || [],
-        joinRequests: selectedEvent?.joinRequests || [],
+      name: values.name,
+      sportType: values.sportType,
+      department: values.department,
+      venueId: values.venueId,
+      startDate: values.startDate.toISOString().split('T')[0],
+      startTime: values.startTime,
+      description: values.description,
+      status: 'upcoming' as const,
+      durationDays: 1, // Default value, can be expanded later
+      settings: { format: 'knockout' as const, restMinutes: 30, allowSameDeptMatches: false }, // Default values
+      teams: selectedEvent?.teams || [],
+      matches: selectedEvent?.matches || [],
+      joinRequests: selectedEvent?.joinRequests || [],
     };
     
-    if (selectedEvent?.id) {
-      const eventDocRef = doc(firestore, 'events', selectedEvent.id);
-      const finalData = { ...selectedEvent, ...eventData };
-      setDocumentNonBlocking(eventDocRef, finalData, { merge: true });
-       toast({
-        title: 'Event Updated',
-        description: `"${values.name}" has been successfully updated.`,
-      });
-    } else {
-      // This is a new event
-      const newDocRef = doc(collection(firestore, 'events'));
-      const finalData = { ...eventData, eventId: newDocRef.id, id: newDocRef.id };
-      setDocumentNonBlocking(newDocRef, finalData, {});
-      toast({
-        title: 'Event Created',
-        description: `"${values.name}" has been successfully created.`,
-      });
+    try {
+        if (selectedEvent?.id) {
+            const eventDocRef = doc(firestore, 'events', selectedEvent.id);
+            const finalData = { ...selectedEvent, ...eventData };
+            setDocumentNonBlocking(eventDocRef, finalData, { merge: true });
+            toast({
+                title: 'Event Updated',
+                description: `"${values.name}" has been successfully updated.`,
+            });
+        } else {
+            // This is a new event
+            const newDocRef = doc(collection(firestore, 'events'));
+            const finalData = { ...eventData, id: newDocRef.id, eventId: newDocRef.id };
+            setDocumentNonBlocking(newDocRef, finalData, {});
+            toast({
+                title: 'Event Created',
+                description: `"${values.name}" has been successfully created.`,
+            });
+        }
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error Saving Event',
+            description: error.message || 'An unexpected error occurred.',
+        });
+    } finally {
+        setIsSubmitting(false);
+        setIsFormOpen(false);
+        setSelectedEvent(undefined);
     }
-
-    setIsSubmitting(false);
-    setIsFormOpen(false);
-    setSelectedEvent(undefined);
   };
 
 
