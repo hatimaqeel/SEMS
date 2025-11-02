@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc, collection, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, collection, arrayUnion, arrayRemove, getDocs, query, where } from 'firebase/firestore';
 import type { Event, JoinRequest, User, Team } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader, PlusCircle, Trash, UserPlus, X } from 'lucide-react';
@@ -29,14 +28,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 
 export default function ManageTeamsPage() {
   const { eventId } = useParams() as { eventId: string };
@@ -55,8 +46,47 @@ export default function ManageTeamsPage() {
   const joinRequestsRef = useMemoFirebase(() => collection(firestore, 'events', eventId, 'joinRequests'), [firestore, eventId]);
   const { data: joinRequests, isLoading: isLoadingJoinRequests } = useCollection<JoinRequest>(joinRequestsRef);
   
-  const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
-  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>(usersRef);
+  const [approvedUsers, setApprovedUsers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+  useEffect(() => {
+    const fetchApprovedUsers = async () => {
+      if (!joinRequests || !firestore) {
+        if(!isLoadingJoinRequests) setIsLoadingUsers(false);
+        return;
+      }
+      setIsLoadingUsers(true);
+      const approvedRequestIds = joinRequests
+        .filter(r => r.status === 'approved')
+        .map(r => r.userId);
+
+      if (approvedRequestIds.length === 0) {
+        setApprovedUsers([]);
+        setIsLoadingUsers(false);
+        return;
+      }
+      
+      try {
+        const usersRef = collection(firestore, 'users');
+        const q = query(usersRef, where('userId', 'in', approvedRequestIds));
+        const userSnaps = await getDocs(q);
+        const usersData = userSnaps.docs.map(d => d.data() as User);
+        setApprovedUsers(usersData);
+      } catch (error) {
+        console.error("Error fetching approved users:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch approved user data."
+        })
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchApprovedUsers();
+  }, [joinRequests, firestore, toast, isLoadingJoinRequests]);
+
 
   const handleAddTeam = () => {
     setIsTeamFormOpen(true);
@@ -72,12 +102,14 @@ export default function ManageTeamsPage() {
     if (!teamName || !event) return;
     setIsSubmitting(true);
 
-    const newTeam: Team = {
+    const newTeam: Omit<Team, 'id'> = {
       teamId: doc(collection(firestore, 'temp')).id,
       teamName,
-      department: event.department, // Or allow selection
-      players: [],
+      department: event.department,
+      players: [], 
       sportType: event.sportType,
+      status: 'approved',
+      preferredVenues: [],
     };
 
     updateDocumentNonBlocking(eventRef, { teams: arrayUnion(newTeam) });
@@ -101,7 +133,8 @@ export default function ManageTeamsPage() {
     if (!event) return;
     const updatedTeams = event.teams.map(t => {
       if (t.teamId === team.teamId) {
-        return { ...t, players: [...t.players, player] };
+        const newPlayers = t.players ? [...t.players, player] : [player];
+        return { ...t, players: newPlayers };
       }
       return t;
     });
@@ -124,10 +157,7 @@ export default function ManageTeamsPage() {
 
   const isLoading = isLoadingEvent || isLoadingJoinRequests || isLoadingUsers;
   
-  const approvedRequests = joinRequests?.filter(r => r.status === 'approved') || [];
-  const approvedUserIds = new Set(approvedRequests.map(r => r.userId));
-  const approvedUsers = allUsers?.filter(u => approvedUserIds.has(u.userId)) || [];
-  const assignedPlayerIds = new Set(event?.teams.flatMap(t => t.players.map(p => p.userId)));
+  const assignedPlayerIds = new Set(event?.teams?.flatMap(t => t.players?.map(p => p.userId) || []) || []);
   const availablePlayers = approvedUsers.filter(u => !assignedPlayerIds.has(u.userId));
 
   if (isLoading) {
@@ -147,7 +177,7 @@ export default function ManageTeamsPage() {
       </PageHeader>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {event?.teams.map(team => (
+        {event?.teams?.map(team => (
           <Card key={team.teamId}>
             <CardHeader className='flex-row items-center justify-between'>
               <CardTitle>{team.teamName}</CardTitle>
@@ -161,13 +191,13 @@ export default function ManageTeamsPage() {
                </div>
             </CardHeader>
             <CardContent>
-                {team.players.length > 0 ? (
+                {team.players && team.players.length > 0 ? (
                     <div className="space-y-3">
                         {team.players.map(player => (
                             <div key={player.userId} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
-                                        <AvatarImage src={player.photoURL} />
+                                        {player.photoURL && <AvatarImage src={player.photoURL} />}
                                         <AvatarFallback>{player.displayName.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <span>{player.displayName}</span>
@@ -186,7 +216,7 @@ export default function ManageTeamsPage() {
         ))}
       </div>
 
-       {event?.teams.length === 0 && !isLoading && (
+       {event?.teams?.length === 0 && !isLoading && (
          <div className="text-center py-10 px-6 bg-muted/50 rounded-lg border-2 border-dashed">
             <p className="font-semibold">No Teams Created Yet</p>
             <p className="text-sm text-muted-foreground mt-1">Click "Create New Team" to start building your teams.</p>
@@ -231,7 +261,7 @@ export default function ManageTeamsPage() {
                         <div key={player.userId} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                             <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
-                                    <AvatarImage src={player.photoURL} />
+                                    {player.photoURL && <AvatarImage src={player.photoURL} />}
                                     <AvatarFallback>{player.displayName.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
