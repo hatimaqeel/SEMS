@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { collection, doc } from "firebase/firestore";
@@ -27,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { MoreHorizontal, PlusCircle, Trash, Edit } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -85,8 +86,8 @@ export default function EventsPage() {
   };
 
   const confirmDelete = () => {
-    if (selectedEvent) {
-      const eventDocRef = doc(firestore, 'events', selectedEvent.eventId);
+    if (selectedEvent?.id) {
+      const eventDocRef = doc(firestore, 'events', selectedEvent.id);
       deleteDocumentNonBlocking(eventDocRef);
       toast({
         title: 'Event Deleted',
@@ -102,15 +103,15 @@ export default function EventsPage() {
     const eventData = {
         ...values,
         startDate: values.startDate.toISOString().split('T')[0], // format to 'YYYY-MM-DD'
-        status: 'upcoming',
+        status: 'upcoming' as const,
         durationDays: 1, // Default value, can be expanded later
-        settings: { format: 'knockout', restMinutes: 30, allowSameDeptMatches: false }, // Default values
-        teams: [],
-        matches: [],
+        settings: { format: 'knockout' as const, restMinutes: 30, allowSameDeptMatches: false }, // Default values
+        teams: selectedEvent?.teams || [],
+        matches: selectedEvent?.matches || [],
     };
     
-    if (selectedEvent) {
-      const eventDocRef = doc(firestore, 'events', selectedEvent.eventId);
+    if (selectedEvent?.id) {
+      const eventDocRef = doc(firestore, 'events', selectedEvent.id);
       const finalData = { ...selectedEvent, ...eventData };
       setDocumentNonBlocking(eventDocRef, finalData, { merge: true });
        toast({
@@ -120,7 +121,7 @@ export default function EventsPage() {
     } else {
       // This is a new event
       const newDocRef = doc(collection(firestore, 'events'));
-      const finalData = { ...eventData, eventId: newDocRef.id };
+      const finalData = { ...eventData, eventId: newDocRef.id, id: newDocRef.id };
       setDocumentNonBlocking(newDocRef, finalData, {});
       toast({
         title: 'Event Created',
@@ -199,7 +200,12 @@ export default function EventsPage() {
                           <Edit className="mr-2 h-4 w-4" />
                           Edit Event
                         </DropdownMenuItem>
-                        <DropdownMenuItem>View Bracket</DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={`/admin/events/schedule/${event.id}`}>
+                                <GanttChartSquare className="mr-2 h-4 w-4" />
+                                Manage Schedule
+                            </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"

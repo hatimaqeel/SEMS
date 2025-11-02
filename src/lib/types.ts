@@ -1,5 +1,6 @@
 
 export type Sport = {
+  id?: string;
   sportId: string;
   sportName: string;
   teamSize: number;
@@ -7,6 +8,7 @@ export type Sport = {
 };
 
 export type Venue = {
+  id?: string;
   venueId: string;
   name: string;
   location: string;
@@ -19,11 +21,13 @@ export type Venue = {
 };
 
 export type Department = {
+  id?: string;
   departmentId: string;
   name: string;
 }
 
 export type Event = {
+  id?: string;
   eventId: string;
   name:string;
   sportType: string;
@@ -44,6 +48,7 @@ export type Event = {
 };
 
 export type Team = {
+  id?: string;
   teamId: string;
   teamName: string;
   department: string;
@@ -54,6 +59,7 @@ export type Team = {
 };
 
 export type Match = {
+  id?: string;
   matchId: string;
   teamAId: string;
   teamBId: string;
@@ -67,6 +73,7 @@ export type Match = {
 };
 
 export type User = {
+  id?: string;
   userId: string;
   displayName: string;
   role: 'admin' | 'coordinator' | 'referee' | 'student';
