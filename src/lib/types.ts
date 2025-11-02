@@ -46,6 +46,7 @@ export type Event = {
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   teams: Team[];
   matches: Match[];
+  joinRequests: JoinRequest[];
 };
 
 export type Team = {
@@ -53,10 +54,8 @@ export type Team = {
   teamId: string;
   teamName: string;
   department: string;
-  status: 'approved' | 'pending' | 'rejected';
+  players: User[]; // Students in the team
   sportType: string;
-  preferredVenues: string[];
-  metadata?: any;
 };
 
 export type Match = {
@@ -83,3 +82,10 @@ export type User = {
   registrationNumber?: string;
   gender?: 'male' | 'female' | 'other';
 };
+
+export type JoinRequest = {
+  userId: string;
+  userName: string;
+  userDept: string;
+  status: 'pending' | 'approved' | 'rejected';
+}

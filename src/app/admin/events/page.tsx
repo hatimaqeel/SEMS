@@ -108,6 +108,7 @@ export default function EventsPage() {
         settings: { format: 'knockout' as const, restMinutes: 30, allowSameDeptMatches: false }, // Default values
         teams: selectedEvent?.teams || [],
         matches: selectedEvent?.matches || [],
+        joinRequests: selectedEvent?.joinRequests || [],
     };
     
     if (selectedEvent?.id) {
@@ -165,7 +166,7 @@ export default function EventsPage() {
                 <TableHead>Sport</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Teams</TableHead>
+                <TableHead>Join Requests</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -185,7 +186,7 @@ export default function EventsPage() {
                   <TableCell>
                     <Badge variant={statusVariant(event.status)}>{event.status}</Badge>
                   </TableCell>
-                  <TableCell>{event.teams?.length || 0}</TableCell>
+                  <TableCell>{event.joinRequests?.length || 0}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

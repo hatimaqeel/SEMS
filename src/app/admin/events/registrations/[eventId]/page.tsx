@@ -2,8 +2,8 @@
 
 import { useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import type { Event, Team } from '@/lib/types';
+import { doc } from 'firebase/firestore';
+import type { Event, JoinRequest } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,19 +37,22 @@ export default function EventRegistrationsPage() {
   );
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
 
-  const handleTeamStatusChange = async (teamId: string, newStatus: 'approved' | 'rejected') => {
+  const handleRequestStatusChange = async (
+    userId: string,
+    newStatus: 'approved' | 'rejected'
+  ) => {
     if (!event) return;
 
-    const updatedTeams = event.teams.map(team =>
-      team.teamId === teamId ? { ...team, status: newStatus } : team
+    const updatedRequests = event.joinRequests.map((req) =>
+      req.userId === userId ? { ...req, status: newStatus } : req
     );
 
     const eventDocRef = doc(firestore, 'events', eventId);
-    updateDocumentNonBlocking(eventDocRef, { teams: updatedTeams });
+    updateDocumentNonBlocking(eventDocRef, { joinRequests: updatedRequests });
 
     toast({
-      title: `Team ${newStatus}`,
-      description: `The team has been successfully ${newStatus}.`,
+      title: `Request ${newStatus}`,
+      description: `The student's request has been ${newStatus}.`,
     });
   };
 
@@ -65,13 +68,18 @@ export default function EventRegistrationsPage() {
         return 'outline';
     }
   };
-  
-  const pendingTeams = event?.teams.filter(t => t.status === 'pending') || [];
-  const reviewedTeams = event?.teams.filter(t => t.status !== 'pending') || [];
 
+  const pendingRequests =
+    event?.joinRequests?.filter((r) => r.status === 'pending') || [];
+  const reviewedRequests =
+    event?.joinRequests?.filter((r) => r.status !== 'pending') || [];
 
   if (isLoadingEvent) {
-    return <div className="flex items-center justify-center p-8"><Loader className="animate-spin" /> Loading registrations...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader className="animate-spin" /> Loading registrations...
+      </div>
+    );
   }
 
   if (!event) {
@@ -82,37 +90,39 @@ export default function EventRegistrationsPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title={`Registrations for ${event.name}`}
-        description="Approve or reject team registration requests for this event."
+        description="Approve or reject student join requests for this event."
       />
 
       <Card>
         <CardHeader>
           <CardTitle>Pending Requests</CardTitle>
           <CardDescription>
-            These teams are awaiting your approval.
+            These students are awaiting your approval.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Team Name</TableHead>
+                <TableHead>Student Name</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pendingTeams.length > 0 ? (
-                pendingTeams.map(team => (
-                  <TableRow key={team.teamId}>
-                    <TableCell className="font-medium">{team.teamName}</TableCell>
-                    <TableCell>{team.department}</TableCell>
+              {pendingRequests.length > 0 ? (
+                pendingRequests.map((req) => (
+                  <TableRow key={req.userId}>
+                    <TableCell className="font-medium">{req.userName}</TableCell>
+                    <TableCell>{req.userDept}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-green-500 hover:text-green-600"
-                        onClick={() => handleTeamStatusChange(team.teamId, 'approved')}
+                        onClick={() =>
+                          handleRequestStatusChange(req.userId, 'approved')
+                        }
                       >
                         <Check className="h-4 w-4" />
                       </Button>
@@ -120,7 +130,9 @@ export default function EventRegistrationsPage() {
                         variant="ghost"
                         size="icon"
                         className="text-red-500 hover:text-red-600"
-                        onClick={() => handleTeamStatusChange(team.teamId, 'rejected')}
+                        onClick={() =>
+                          handleRequestStatusChange(req.userId, 'rejected')
+                        }
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -130,46 +142,7 @@ export default function EventRegistrationsPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={3} className="text-center h-24">
-                    No pending registration requests.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Reviewed Requests</CardTitle>
-          <CardDescription>
-            These teams have already been reviewed.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Team Name</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reviewedTeams.length > 0 ? (
-                reviewedTeams.map(team => (
-                  <TableRow key={team.teamId}>
-                    <TableCell className="font-medium">{team.teamName}</TableCell>
-                    <TableCell>{team.department}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(team.status)}>{team.status}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center h-24">
-                    No reviewed registrations yet.
+                    No pending join requests.
                   </TableCell>
                 </TableRow>
               )}
@@ -178,6 +151,46 @@ export default function EventRegistrationsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Reviewed Requests</CardTitle>
+          <CardDescription>
+            These students have already been reviewed.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reviewedRequests.length > 0 ? (
+                reviewedRequests.map((req) => (
+                  <TableRow key={req.userId}>
+                    <TableCell className="font-medium">{req.userName}</TableCell>
+                    <TableCell>{req.userDept}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(req.status)}>
+                        {req.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center h-24">
+                    No reviewed requests yet.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
