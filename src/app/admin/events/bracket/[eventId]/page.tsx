@@ -3,7 +3,7 @@
 
 import { useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection } from 'firebase/firestore';
+import { doc, collection, updateDoc } from 'firebase/firestore';
 import type { Event, Bracket as BracketType, Match, Team, Venue } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Loader, Trophy, Users, Calendar, Clock } from 'lucide-react';
@@ -36,7 +36,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useState }from 'react';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type BracketMatch = Match & {
   teamA?: Team;
@@ -103,7 +102,7 @@ export default function BracketPage() {
     () => doc(firestore, 'brackets', eventId),
     [firestore, eventId]
   );
-  const { data: bracket, isLoading: isLoadingBracket } = useDoc<BracketType>(bracketRef);
+  const { data: bracket, isLoading: isLoadingBracket, error: bracketError } = useDoc<BracketType>(bracketRef);
 
   const handleSelectWinner = (match: BracketMatch, winner: Team) => {
     setSelectedMatch({ match, winner });
@@ -112,48 +111,60 @@ export default function BracketPage() {
   
   const confirmWinner = async () => {
     if (!selectedMatch || !event) return;
-    
-    const {match, winner} = selectedMatch;
-    let eventDocRef = doc(firestore, 'events', eventId);
 
-    // 1. Update the match winner in the event document
+    const { match, winner } = selectedMatch;
+    const eventDocRef = doc(firestore, 'events', eventId);
+
+    // 1. Update the current match status and winner
     let updatedMatches = event.matches.map(m =>
       m.matchId === match.matchId
         ? { ...m, winnerTeamId: winner.teamId, status: 'completed' as const }
         : m
     );
-    await updateDocumentNonBlocking(eventDocRef, { matches: updatedMatches });
-    
-    // 2. For knockout, find the next round and the next match for the winner
-    if(event.settings.format === 'knockout' && bracket) {
-      const currentRoundIndex = bracket.rounds.findIndex(r => r.matches.includes(match.matchId)) ?? -1;
-      const nextRoundIndex = currentRoundIndex + 1;
 
-      if (nextRoundIndex < bracket.rounds.length) {
+    // 2. For knockout, find the next match and advance the winner
+    if (event.settings.format === 'knockout' && bracket) {
+      const currentRoundIndex = bracket.rounds.findIndex(r => r.matches.includes(match.matchId));
+      
+      if (currentRoundIndex !== -1 && currentRoundIndex < bracket.rounds.length - 1) {
         const matchIndexInRound = bracket.rounds[currentRoundIndex].matches.indexOf(match.matchId);
-        const nextMatchIndex = Math.floor(matchIndexInRound / 2);
-        const nextMatchId = bracket.rounds[nextRoundIndex].matches[nextMatchIndex];
+        const nextRoundIndex = currentRoundIndex + 1;
+        const nextMatchIndexInRound = Math.floor(matchIndexInRound / 2);
+        
+        const nextMatchId = bracket.rounds[nextRoundIndex]?.matches[nextMatchIndexInRound];
 
         if (nextMatchId) {
           const teamSlot = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
-          const matchesWithNextOpponent = updatedMatches.map(m => {
-              if (m.matchId === nextMatchId) {
-                  return { ...m, [teamSlot]: winner.teamId };
-              }
-              return m;
+          
+          updatedMatches = updatedMatches.map(m => {
+            if (m.matchId === nextMatchId) {
+              return { ...m, [teamSlot]: winner.teamId };
+            }
+            return m;
           });
-          await updateDocumentNonBlocking(eventDocRef, { matches: matchesWithNextOpponent });
         }
       }
     }
-    
-    toast({
+
+    // 3. Atomically update the event document
+    try {
+      await updateDoc(eventDocRef, { matches: updatedMatches });
+      toast({
         title: "Winner Declared",
         description: `${winner.teamName} has won the match.`
-    })
-    setIsAlertOpen(false);
-    setSelectedMatch(null);
+      });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Error updating match",
+        description: e.message || "Could not update the match result."
+      });
+    } finally {
+      setIsAlertOpen(false);
+      setSelectedMatch(null);
+    }
   };
+
 
   const isLoading = isLoadingEvent || isLoadingBracket || isLoadingVenues;
   const getTeamById = (teamId: string) => event?.teams.find(t => t.teamId === teamId);
@@ -167,7 +178,7 @@ export default function BracketPage() {
     );
   }
 
-  if (!event || !bracket) {
+  if (!event || !bracket || bracketError) {
     return (
        <div className="flex flex-col gap-8">
         <PageHeader
@@ -243,36 +254,46 @@ export default function BracketPage() {
                     <TableHead>Match</TableHead>
                     <TableHead>Venue</TableHead>
                     <TableHead>Date & Time</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {allMatchesWithData.map(match => (
-                    <TableRow key={match.matchId}>
-                        <TableCell className="font-medium">
-                            {match.teamA?.teamName || 'TBD'} vs {match.teamB?.teamName || 'TBD'}
-                        </TableCell>
-                        <TableCell>{getVenueName(match.venueId)}</TableCell>
-                        <TableCell>
-                            <div className="flex items-center">
-                                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                {new Date(match.startTime).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center text-xs text-muted-foreground">
-                                <Clock className="mr-2 h-4 w-4" />
-                                {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                        </TableCell>
-                         <TableCell>
-                          <Button disabled={match.status === 'completed'} onClick={() => handleSelectWinner(match, match.teamA!)}>
-                            {match.teamA?.teamName} Won
-                          </Button>
-                          <Button disabled={match.status === 'completed'} onClick={() => handleSelectWinner(match, match.teamB!)} className="ml-2">
-                             {match.teamB?.teamName} Won
-                          </Button>
-                        </TableCell>
-                    </TableRow>
-                ))}
+                {allMatchesWithData.map(match => {
+                    const teamA = getTeamById(match.teamAId);
+                    const teamB = getTeamById(match.teamBId);
+                    return (
+                        <TableRow key={match.matchId}>
+                            <TableCell className="font-medium">
+                                {teamA?.teamName || 'TBD'} vs {teamB?.teamName || 'TBD'}
+                            </TableCell>
+                            <TableCell>{getVenueName(match.venueId)}</TableCell>
+                            <TableCell>
+                                <div className="flex items-center">
+                                    <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    {new Date(match.startTime).toLocaleDateString()}
+                                </div>
+                                <div className="flex items-center text-xs text-muted-foreground">
+                                    <Clock className="mr-2 h-4 w-4" />
+                                    {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                {match.status !== 'completed' && teamA && teamB ? (
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => handleSelectWinner(match, teamA)}>
+                                            {teamA.teamName} Won
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => handleSelectWinner(match, teamB)}>
+                                            {teamB.teamName} Won
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground capitalize">{match.status}</span>
+                                )}
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
                 </TableBody>
             </Table>
           )}
@@ -297,3 +318,5 @@ export default function BracketPage() {
     </div>
   );
 }
+
+    
