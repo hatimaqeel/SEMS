@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { doc, collection, arrayUnion, arrayRemove, getDocs, query, where } from 'firebase/firestore';
-import type { Event, JoinRequest, User, Team } from '@/lib/types';
+import type { Event, JoinRequest, User, Team, Department } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ManageTeamsPage() {
   const { eventId } = useParams() as { eventId: string };
@@ -38,10 +39,14 @@ export default function ManageTeamsPage() {
   const [isPlayerFormOpen, setIsPlayerFormOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [teamName, setTeamName] = useState('');
+  const [teamDepartment, setTeamDepartment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const eventRef = useMemoFirebase(() => doc(firestore, 'events', eventId), [firestore, eventId]);
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
+
+  const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
+  const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
 
   const joinRequestsRef = useMemoFirebase(() => collection(firestore, 'events', eventId, 'joinRequests'), [firestore, eventId]);
   const { data: joinRequests, isLoading: isLoadingJoinRequests } = useCollection<JoinRequest>(joinRequestsRef);
@@ -89,6 +94,8 @@ export default function ManageTeamsPage() {
 
 
   const handleAddTeam = () => {
+    setTeamName('');
+    setTeamDepartment('');
     setIsTeamFormOpen(true);
   };
 
@@ -99,13 +106,13 @@ export default function ManageTeamsPage() {
 
   const handleTeamFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!teamName || !event) return;
+    if (!teamName || !teamDepartment || !event) return;
     setIsSubmitting(true);
 
     const newTeam: Omit<Team, 'id'> = {
       teamId: doc(collection(firestore, 'temp')).id,
       teamName,
-      department: event.department,
+      department: teamDepartment,
       players: [], 
       sportType: event.sportType,
       status: 'approved',
@@ -118,6 +125,7 @@ export default function ManageTeamsPage() {
     setIsSubmitting(false);
     setIsTeamFormOpen(false);
     setTeamName('');
+    setTeamDepartment('');
   };
 
   const handleDeleteTeam = (teamId: string) => {
@@ -155,10 +163,13 @@ export default function ManageTeamsPage() {
   };
 
 
-  const isLoading = isLoadingEvent || isLoadingJoinRequests || isLoadingUsers;
+  const isLoading = isLoadingEvent || isLoadingJoinRequests || isLoadingUsers || isLoadingDepts;
   
   const assignedPlayerIds = new Set(event?.teams?.flatMap(t => t.players?.map(p => p.userId) || []) || []);
-  const availablePlayers = approvedUsers.filter(u => !assignedPlayerIds.has(u.userId));
+  const availablePlayersForSelectedTeam = approvedUsers.filter(u => 
+    !assignedPlayerIds.has(u.userId) && u.dept === selectedTeam?.department
+  );
+
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8"><Loader className="animate-spin" /> Loading team data...</div>;
@@ -176,11 +187,14 @@ export default function ManageTeamsPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {event?.teams?.map(team => (
           <Card key={team.teamId}>
             <CardHeader className='flex-row items-center justify-between'>
-              <CardTitle>{team.teamName}</CardTitle>
+              <div>
+                <CardTitle>{team.teamName}</CardTitle>
+                <p className="text-sm text-muted-foreground">{team.department}</p>
+              </div>
                <div className="flex items-center gap-1">
                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleAddPlayers(team)}>
                     <UserPlus className="h-4 w-4" />
@@ -228,7 +242,7 @@ export default function ManageTeamsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create a New Team</DialogTitle>
-            <DialogDescription>Enter a name for the new team for {event?.name}.</DialogDescription>
+            <DialogDescription>Enter a name and department for the new team for {event?.name}.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleTeamFormSubmit} className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -240,6 +254,19 @@ export default function ManageTeamsPage() {
                 placeholder="e.g., CS Warriors"
                 disabled={isSubmitting}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="team-dept">Department</Label>
+               <Select onValueChange={setTeamDepartment} value={teamDepartment} disabled={isSubmitting}>
+                  <SelectTrigger id="team-dept">
+                    <SelectValue placeholder="Select a department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments?.map(dept => (
+                       <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
             </div>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Creating...' : 'Create Team'}
@@ -253,11 +280,11 @@ export default function ManageTeamsPage() {
         <DialogContent className="max-w-md">
             <DialogHeader>
                 <DialogTitle>Add Players to {selectedTeam?.teamName}</DialogTitle>
-                <DialogDescription>Select from the list of approved and available students.</DialogDescription>
+                <DialogDescription>Select from approved students in the {selectedTeam?.department} department.</DialogDescription>
             </DialogHeader>
             <ScrollArea className="max-h-[60vh]">
                 <div className="space-y-2 pr-4">
-                    {availablePlayers.length > 0 ? availablePlayers.map(player => (
+                    {availablePlayersForSelectedTeam.length > 0 ? availablePlayersForSelectedTeam.map(player => (
                         <div key={player.userId} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                             <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
@@ -272,7 +299,7 @@ export default function ManageTeamsPage() {
                             <Button size="sm" onClick={() => handleAddPlayerToTeam(selectedTeam!, player)}>Add</Button>
                         </div>
                     )) : (
-                        <p className="text-sm text-center text-muted-foreground py-8">No available players to add.</p>
+                        <p className="text-sm text-center text-muted-foreground py-8">No available players from this department.</p>
                     )}
                 </div>
             </ScrollArea>
