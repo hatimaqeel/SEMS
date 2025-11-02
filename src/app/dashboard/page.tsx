@@ -1,14 +1,17 @@
 'use client';
 
+import { arrayUnion, collection, doc } from 'firebase/firestore';
 import {
-  arrayUnion,
-  collection,
-  doc,
-  updateDoc,
-  getDoc,
-} from 'firebase/firestore';
-import { ArrowRight, Calendar, Loader, MapPin } from 'lucide-react';
-import Link from 'next/link';
+  ArrowRight,
+  Calendar,
+  CheckCircle,
+  Clock,
+  HelpCircle,
+  Loader,
+  MapPin,
+  XCircle,
+} from 'lucide-react';
+import Image from 'next/image';
 import {
   useCollection,
   useDoc,
@@ -24,10 +27,13 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 export default function StudentDashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -39,7 +45,8 @@ export default function StudentDashboardPage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userData, isLoading: isUserDataLoading } = useDoc<User>(userDocRef);
+  const { data: userData, isLoading: isUserDataLoading } =
+    useDoc<User>(userDocRef);
 
   const eventsRef = useMemoFirebase(
     () => collection(firestore, 'events'),
@@ -81,8 +88,11 @@ export default function StudentDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader className="animate-spin" /> Loading dashboard...
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader className="h-5 w-5 animate-spin" />
+          <span>Loading dashboard...</span>
+        </div>
       </div>
     );
   }
@@ -94,109 +104,140 @@ export default function StudentDashboardPage() {
       </div>
     );
   }
+  
+  const upcomingEvents = events?.filter((e) => e.status === 'upcoming') || [];
+  const myRequests = upcomingEvents.filter(e => e.joinRequests?.some(r => r.userId === user?.uid));
+  const availableEvents = upcomingEvents.filter(e => !myRequests.some(mr => mr.id === e.id));
+
+
+  const getStatusIcon = (status: 'pending' | 'approved' | 'rejected') => {
+    switch(status) {
+      case 'approved': return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'pending': return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'rejected': return <XCircle className="h-4 w-4 text-red-500" />;
+      default: return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
+    }
+  }
 
   return (
-    <div className="grid gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight font-headline">
-          Welcome, {userData.displayName}!
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Here are the upcoming events you can join.
-        </p>
+    <div className="grid gap-8 lg:grid-cols-3">
+      {/* Left Column */}
+      <div className="lg:col-span-1 space-y-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-4">
+             <Avatar className="h-16 w-16">
+                {user?.photoURL && <AvatarImage src={user.photoURL} alt={userData.displayName}/>}
+                <AvatarFallback>{userData.displayName.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+                 <CardTitle className="text-2xl font-headline">{userData.displayName}</CardTitle>
+                 <CardDescription>{userData.email}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div>
+                <p className="font-semibold text-muted-foreground">Department</p>
+                <p>{userData.dept}</p>
+            </div>
+            {userData.registrationNumber && (
+                 <div>
+                    <p className="font-semibold text-muted-foreground">Registration #</p>
+                    <p>{userData.registrationNumber}</p>
+                </div>
+            )}
+             {userData.gender && (
+                 <div>
+                    <p className="font-semibold text-muted-foreground">Gender</p>
+                    <p className="capitalize">{userData.gender}</p>
+                </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>My Profile</CardTitle>
-          <CardDescription>
-            Your personal and department information.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p>
-            <strong>Name:</strong> {userData.displayName}
-          </p>
-          <p>
-            <strong>Email:</strong> {userData.email}
-          </p>
-          <p>
-            <strong>Department:</strong> {userData.dept}
-          </p>
-          {userData.registrationNumber && (
-            <p>
-              <strong>Registration #:</strong> {userData.registrationNumber}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Right Column */}
+      <div className="lg:col-span-2 space-y-8">
+         <div>
+            <h2 className="text-2xl font-bold tracking-tight font-headline mb-4">My Registrations</h2>
+             {myRequests.length > 0 ? (
+                <div className="space-y-4">
+                {myRequests.map(event => {
+                    const request = event.joinRequests.find(r => r.userId === user?.uid)!;
+                    return (
+                        <Card key={event.id} className="flex items-center p-4">
+                            <div className="flex-grow">
+                                <h3 className="font-semibold">{event.name}</h3>
+                                <p className="text-sm text-muted-foreground">{event.sportType}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {getStatusIcon(request.status)}
+                                <span className="text-sm font-medium capitalize">{request.status}</span>
+                            </div>
+                        </Card>
+                    )
+                })}
+                </div>
+             ): (
+                <p className="text-muted-foreground text-sm">You haven&apos;t requested to join any events yet.</p>
+             )}
+         </div>
 
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight font-headline">
-          Available Events
-        </h2>
-        <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {events
-            ?.filter((e) => e.status === 'upcoming')
-            .map((event) => {
-              const isDeptMatch = event.department === 'All' || event.department === userData.dept;
-              const hasAlreadyRequested = event.joinRequests?.some(
-                (req) => req.userId === user?.uid
-              );
-              const requestStatus = hasAlreadyRequested
-                ? event.joinRequests?.find((req) => req.userId === user?.uid)
-                    ?.status
-                : null;
-
-              let buttonText = 'Request to Join';
-              if (requestStatus === 'pending') {
-                buttonText = 'Request Pending';
-              } else if (requestStatus === 'approved') {
-                buttonText = 'Approved';
-              } else if (requestStatus === 'rejected') {
-                buttonText = 'Request Rejected';
-              }
-              
-              return (
-                <Card key={event.id} className="flex flex-col">
-                  <CardHeader>
-                    <CardTitle>{event.name}</CardTitle>
-                    <Badge variant="secondary" className="w-fit">
-                      {event.sportType}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="flex-grow space-y-2">
-                    <div className="flex items-center text-muted-foreground text-sm">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>
-                        Starts: {new Date(event.startDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-muted-foreground text-sm">
-                      <MapPin className="mr-2 h-4 w-4" />
-                      <span>
-                        Organized by: {event.department} Department
-                      </span>
-                    </div>
-                  </CardContent>
-                  <div className="p-6 pt-0">
-                    <Button
-                      className="w-full"
-                      disabled={!isDeptMatch || hasAlreadyRequested}
-                      onClick={() => handleRequestToJoin(event)}
-                    >
-                      {buttonText}
-                      {!hasAlreadyRequested && <ArrowRight className="ml-2 h-4 w-4" />}
-                    </Button>
-                    {!isDeptMatch && (
-                      <p className="text-xs text-center text-muted-foreground mt-2">
-                        This event is not for your department.
-                      </p>
+        <Separator />
+        
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight font-headline">Available Events</h2>
+          {availableEvents.length > 0 ? (
+            <div className="mt-4 grid gap-6 md:grid-cols-2">
+              {availableEvents.map((event) => {
+                const isDeptMatch = event.department === 'All' || event.department === userData.dept;
+                const hasAlreadyRequested = event.joinRequests?.some(
+                  (req) => req.userId === user?.uid
+                );
+                
+                return (
+                  <Card key={event.id} className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle>{event.name}</CardTitle>
+                      <Badge variant="secondary" className="w-fit">
+                        {event.sportType}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="flex-grow space-y-2">
+                      <div className="flex items-center text-muted-foreground text-sm">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>
+                          Starts: {new Date(event.startDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-muted-foreground text-sm">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        <span>
+                          Organized by: {event.department} Department
+                        </span>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button
+                        className="w-full"
+                        disabled={!isDeptMatch || hasAlreadyRequested}
+                        onClick={() => handleRequestToJoin(event)}
+                      >
+                        Request to Join
+                        {!hasAlreadyRequested && <ArrowRight className="ml-2 h-4 w-4" />}
+                      </Button>
+                    </CardFooter>
+                     {!isDeptMatch && (
+                        <p className="text-xs text-center text-muted-foreground pb-4 px-6">
+                            This event is not for your department.
+                        </p>
                     )}
-                  </div>
-                </Card>
-              );
-            })}
+                  </Card>
+                );
+              })}
+            </div>
+            ) : (
+                <p className="text-muted-foreground text-sm mt-4">There are no new events available for registration.</p>
+            )}
         </div>
       </div>
     </div>
