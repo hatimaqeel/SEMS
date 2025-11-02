@@ -1,6 +1,6 @@
 'use client';
 
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import {
   ArrowRight,
   Calendar,
@@ -60,7 +60,7 @@ export default function StudentDashboardPage() {
       const requests: Record<string, JoinRequest | null> = {};
       const requestPromises = events.map(async (event) => {
         const requestRef = doc(firestore, 'events', event.id!, 'joinRequests', user.uid);
-        const requestSnap = await doc(requestRef).get();
+        const requestSnap = await getDoc(requestRef);
         if (requestSnap.exists()) {
           requests[event.id!] = requestSnap.data() as JoinRequest;
         } else {
