@@ -53,8 +53,10 @@ export type Team = {
   teamId: string;
   teamName: string;
   department: string;
-  players: User[]; // Students in the team
+  players: User[]; 
   sportType: string;
+  status?: 'approved' | 'pending' | 'rejected';
+  preferredVenues?: string[];
 };
 
 export type Match = {

@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare, Users } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare, Users, Shield } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -212,6 +212,12 @@ export default function EventsPage() {
                         <DropdownMenuItem onClick={() => handleEditClick(event)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit Event
+                        </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                            <Link href={`/admin/events/teams/${event.id}`}>
+                                <Shield className="mr-2 h-4 w-4" />
+                                Manage Teams
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                             <Link href={`/admin/events/registrations/${event.id}`}>
