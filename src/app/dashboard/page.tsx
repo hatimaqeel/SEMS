@@ -1,3 +1,5 @@
+'use client';
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,16 +10,35 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { events, users } from "@/lib/placeholder-data";
+import { events } from "@/lib/placeholder-data";
 import { Calendar, MapPin, ArrowRight } from "lucide-react";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import type { User } from "@/lib/types";
+import { doc } from "firebase/firestore";
 
 export default function StudentDashboardPage() {
-  const student = users.find(u => u.role === 'student');
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userData, isLoading: isUserDataLoading } = useDoc<User>(userDocRef);
+
+  if (isUserLoading || isUserDataLoading) {
+    return <div className="flex items-center justify-center"><p>Loading dashboard...</p></div>
+  }
+
+  if (!userData) {
+     return <div className="flex items-center justify-center"><p>Could not load user data.</p></div>
+  }
 
   return (
     <div className="grid gap-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight font-headline">Welcome, {student?.displayName}!</h1>
+        <h1 className="text-3xl font-bold tracking-tight font-headline">Welcome, {userData.displayName}!</h1>
         <p className="text-muted-foreground mt-1">
           Here are the upcoming events you can join.
         </p>
@@ -29,10 +50,10 @@ export default function StudentDashboardPage() {
           <CardDescription>Your personal and department information.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p><strong>Name:</strong> {student?.displayName}</p>
-          <p><strong>Email:</strong> {student?.email}</p>
-          <p><strong>Department:</strong> {student?.dept}</p>
-          <p><strong>Registration #:</strong> {student?.registrationNumber}</p>
+          <p><strong>Name:</strong> {userData.displayName}</p>
+          <p><strong>Email:</strong> {userData.email}</p>
+          <p><strong>Department:</strong> {userData.dept}</p>
+          <p><strong>Registration #:</strong> {userData.registrationNumber}</p>
         </CardContent>
       </Card>
 

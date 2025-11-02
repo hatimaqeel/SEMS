@@ -1,5 +1,8 @@
-import Link from "next/link";
-import Image from "next/image";
+'use client';
+
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,18 +10,40 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/common/Logo";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { ChevronDown } from "lucide-react";
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/common/Logo';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { ChevronDown } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useEffect } from 'react';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const avatarImage = PlaceHolderImages.find((p) => p.id === "avatar2");
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+  const avatarImage = PlaceHolderImages.find((p) => p.id === 'avatar2');
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  if (isUserLoading || !user) {
+     return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -35,7 +60,7 @@ export default function DashboardLayout({
               <Button variant="secondary" className="flex items-center gap-2">
                 {avatarImage && (
                   <Image
-                    src={avatarImage.imageUrl}
+                    src={user.photoURL || avatarImage.imageUrl}
                     alt="User avatar"
                     width={24}
                     height={24}
@@ -43,7 +68,7 @@ export default function DashboardLayout({
                     data-ai-hint={avatarImage.imageHint}
                   />
                 )}
-                <span className="hidden md:inline">John Doe</span>
+                <span className="hidden md:inline">{user.displayName || user.email}</span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
@@ -53,7 +78,7 @@ export default function DashboardLayout({
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>My Teams</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

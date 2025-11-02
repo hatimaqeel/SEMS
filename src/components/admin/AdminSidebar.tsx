@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -11,7 +11,6 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/common/Logo";
 import {
   LayoutDashboard,
@@ -22,6 +21,8 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
+import { useAuth } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 const navItems = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -37,6 +38,13 @@ const bottomNavItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  }
 
   return (
     <Sidebar>
@@ -78,11 +86,9 @@ export function AdminSidebar() {
             </SidebarMenuItem>
           ))}
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Logout">
-              <Link href="/">
-                <LogOut />
-                <span>Logout</span>
-              </Link>
+            <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
+              <LogOut />
+              <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

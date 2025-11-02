@@ -12,7 +12,7 @@
  * - /events/{eventId}/logs/{logId}: Log entries for events.
  *
  * Key Security Decisions:
- * - Users can only read their own profile data.
+ * - Users can read and write their own profile data.
  * - All sports, venues and events are publicly readable.
  * - Creation, modification, and deletion of sports, venues, and events is not supported and therefore denied.
  * - Teams and Matches are scoped to specific events. Creation, modification, and deletion of teams and matches is not supported and therefore denied.
@@ -93,18 +93,13 @@ service cloud.firestore {
     /**
      * @description Grants owner-only access to user profile data.
      * @path /users/{userId}
-     * @allow (get, list): User can read their own profile.
-     * @allow (create): User can create their own profile.
-     * @allow (update, delete): User can update/delete their own profile.
-     * @deny (all others): All other operations are denied.
+     * @allow (get, list, create): User can read and create their own profile.
+     * @allow (update, delete): User can update/delete their own profile if it exists.
      * @principle Enforces document ownership.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow read, create: if isOwner(userId);
+      allow update, delete: if isExistingOwner(userId);
     }
 
     /**
