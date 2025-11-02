@@ -50,7 +50,7 @@ export function AdminSidebar() {
   }
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <Logo />
       </SidebarHeader>
