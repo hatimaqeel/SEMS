@@ -1,3 +1,46 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "A wide-angle shot of a university sports stadium at dusk.",
+      "imageUrl": "https://images.unsplash.com/photo-1690752795293-39ab93ac18a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzdGFkaXVtJTIwc3BvcnRzfGVufDB8fHx8MTc2MjEwODgyMXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "stadium sports"
+    },
+    {
+      "id": "cricket",
+      "description": "Action shot of a cricket match.",
+      "imageUrl": "https://images.unsplash.com/photo-1599982917650-21da4d09c437?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmlja2V0JTIwc3BvcnR8ZW58MHx8fHwxNzYyMDIxNjI0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cricket sport"
+    },
+    {
+      "id": "football",
+      "description": "A football on a green field.",
+      "imageUrl": "https://images.unsplash.com/photo-1603291697926-7e5822ed1ac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmb290YmFsbCUyMHNvY2NlcnxlbnwwfHx8fDE3NjIxMTA4MzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "football soccer"
+    },
+    {
+      "id": "basketball",
+      "description": "A basketball going through a hoop.",
+      "imageUrl": "https://images.unsplash.com/photo-1503078921872-c3e4d857c380?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxiYXNrZXRiYWxsJTIwaG9vcHxlbnwwfHx8fDE3NjIwNTg3MDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "basketball hoop"
+    },
+    {
+      "id": "avatar1",
+      "description": "Placeholder for user avatar.",
+      "imageUrl": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjIwNzc3MTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar2",
+      "description": "Placeholder for user avatar.",
+      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjIwNzc3MTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar3",
+      "description": "Placeholder for user avatar.",
+      "imageUrl": "https://images.unsplash.com/photo-1521119989659-a83eee488004?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjIwNzc3MTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    }
+  ]
 }

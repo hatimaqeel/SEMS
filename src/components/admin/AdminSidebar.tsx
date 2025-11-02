@@ -1,0 +1,92 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/common/Logo";
+import {
+  LayoutDashboard,
+  Calendar,
+  Trophy,
+  MapPin,
+  Users,
+  Settings,
+  LogOut,
+} from "lucide-react";
+
+const navItems = [
+  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/admin/events", icon: Calendar, label: "Manage Events" },
+  { href: "/admin/sports", icon: Trophy, label: "Manage Sports" },
+  { href: "/admin/venues", icon: MapPin, label: "Manage Venues" },
+  { href: "/admin/users", icon: Users, label: "Manage Users" },
+];
+
+const bottomNavItems = [
+  { href: "/admin/settings", icon: Settings, label: "Settings" },
+];
+
+export function AdminSidebar() {
+  const pathname = usePathname();
+
+  return (
+    <Sidebar>
+      <SidebarHeader>
+        <Logo />
+      </SidebarHeader>
+      <SidebarContent className="p-2">
+        <SidebarMenu>
+          {navItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(item.href)}
+                tooltip={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
+       <SidebarFooter className="p-2">
+        <SidebarMenu>
+           {bottomNavItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(item.href)}
+                tooltip={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Logout">
+              <Link href="/">
+                <LogOut />
+                <span>Logout</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
