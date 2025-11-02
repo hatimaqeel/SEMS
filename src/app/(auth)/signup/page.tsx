@@ -23,10 +23,11 @@ import {
 } from '@/components/ui/select';
 import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
-import { doc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import type { Department } from '@/lib/types';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -37,7 +38,6 @@ export default function SignupPage() {
 
   const [loading, setLoading] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState<'student' | 'admin' | null>(null);
-
 
   // Student form state
   const [studentName, setStudentName] = useState('');
@@ -55,6 +55,9 @@ export default function SignupPage() {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
   const [secretKey, setSecretKey] = useState('');
+  
+  const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
+  const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
 
   useEffect(() => {
     if (user && !isUserLoading && formSubmitted) {
@@ -175,15 +178,14 @@ export default function SignupPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-dept">Department</Label>
-                <Select onValueChange={setStudentDept} value={studentDept} disabled={loading} required>
+                <Select onValueChange={setStudentDept} value={studentDept} disabled={loading || isLoadingDepts} required>
                   <SelectTrigger id="student-dept">
-                    <SelectValue placeholder="Select department" />
+                    <SelectValue placeholder={isLoadingDepts ? "Loading departments..." : "Select department"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cs">Computer Science</SelectItem>
-                    <SelectItem value="se">Software Engineering</SelectItem>
-                    <SelectItem value="math">Mathematics</SelectItem>
-                    <SelectItem value="physics">Physics</SelectItem>
+                    {departments?.map(dept => (
+                       <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -210,7 +212,7 @@ export default function SignupPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-confirm-password">Confirm Password</Label>
-                <Input id="student-confirm-password" type="password" required value={studentConfirmPassword} onChange={e => setStudentConfirmPassword(e.target.value)} disabled={loading} />
+                <Input id="student-confirm-password" type="password" required value={studentConfirmPassword} onChange={e => setStudentConfirm-password(e.target.value)} disabled={loading} />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Creating Account...' : 'Create student account'}

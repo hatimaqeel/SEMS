@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { collection, doc } from "firebase/firestore";
 import type { Event, Sport, Venue, Department } from "@/lib/types";
 import {
@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash, Edit, GanttChartSquare, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -199,6 +199,12 @@ export default function EventsPage() {
                         <DropdownMenuItem onClick={() => handleEditClick(event)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit Event
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={`/admin/events/registrations/${event.id}`}>
+                                <Users className="mr-2 h-4 w-4" />
+                                Manage Registrations
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                             <Link href={`/admin/events/schedule/${event.id}`}>

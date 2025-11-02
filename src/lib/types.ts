@@ -1,4 +1,5 @@
 
+
 export type Sport = {
   id?: string;
   sportId: string;
@@ -52,7 +53,7 @@ export type Team = {
   teamId: string;
   teamName: string;
   department: string;
-  status: 'approved' | 'pending';
+  status: 'approved' | 'pending' | 'rejected';
   sportType: string;
   preferredVenues: string[];
   metadata?: any;
