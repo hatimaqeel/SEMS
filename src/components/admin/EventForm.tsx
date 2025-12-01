@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Event, Sport, Venue, Department } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
@@ -44,7 +44,10 @@ const formSchema = z.object({
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of today
     return date >= today;
-  }, 'Event date cannot be in the past.'),
+  }, 'Event date cannot be in the past.').refine(date => {
+    const sixMonthsFromNow = addMonths(new Date(), 6);
+    return date <= sixMonthsFromNow;
+  }, 'Event cannot be scheduled more than 6 months in advance.'),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).').refine(time => {
     const [hours] = time.split(':').map(Number);
     return hours >= 8 && hours < 18; // 8 AM to 5:59 PM (as 6:00 PM is 18:00)
@@ -107,6 +110,8 @@ export function EventForm({
   });
 
   const timeSlots = generateTimeSlots();
+  const today = new Date();
+  const sixMonthsFromNow = addMonths(today, 6);
 
   return (
     <Form {...form}>
@@ -233,11 +238,11 @@ export function EventForm({
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            return date < today;
-                        }}
+                        fromDate={today}
+                        toDate={sixMonthsFromNow}
+                        disabled={(date) =>
+                          date < today || date > sixMonthsFromNow
+                        }
                         initialFocus
                     />
                     </PopoverContent>
