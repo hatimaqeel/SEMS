@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -63,7 +64,7 @@ const prompt = ai.definePrompt({
   Your primary task is to optimize the match schedule. You must strictly adhere to the following rules:
 
   1.  **Venue Conflict Validation:** A venue can only host one match at a time. Do not schedule two matches in the same venue if their time slots overlap, regardless of the sport or event.
-  2.  **Time Constraints:** All matches must be scheduled within the overall earliest start time and latest end time.
+  2.  **Time Constraints:** All matches must be scheduled within the overall earliest start time and latest end time. A hard rule is that no matches can be scheduled before 8:00 AM or after 6:00 PM (18:00) local time for the event date.
   3.  **Match Duration:** Use the default duration for the given sport to calculate the end time for each match.
   4.  **Team Preferences:** Prioritize assigning teams to their preferred venues where possible, but avoiding conflicts is more important.
   5.  **Efficiency:** Create the most compact and efficient schedule possible.

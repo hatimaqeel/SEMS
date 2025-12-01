@@ -45,7 +45,10 @@ const formSchema = z.object({
     today.setHours(0, 0, 0, 0); // Set to start of today
     return date >= today;
   }, 'Event date cannot be in the past.'),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).').refine(time => {
+    const [hours] = time.split(':').map(Number);
+    return hours >= 8 && hours < 18; // 8 AM to 5:59 PM (as 6:00 PM is 18:00)
+  }, 'Start time must be between 8:00 AM and 6:00 PM.'),
   description: z.string().min(10, 'Description must be at least 10 characters.').max(200, 'Description cannot exceed 200 characters.'),
   format: z.enum(['knockout', 'round-robin'], { required_error: 'Please select a tournament format.'}),
 });

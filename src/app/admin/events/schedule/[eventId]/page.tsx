@@ -97,6 +97,17 @@ export default function SchedulePage() {
       return;
     }
 
+    const [hours] = editTime.split(':').map(Number);
+    if (hours < 8 || hours >= 18) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Time',
+        description: 'Match time must be between 8:00 AM and 6:00 PM.',
+      });
+      return;
+    }
+
+
     setIsSubmittingEdit(true);
 
     const sportDetails = sports.find(s => s.sportName === event.sportType);
@@ -107,8 +118,8 @@ export default function SchedulePage() {
     }
 
     const newStartTime = new Date(event.startDate);
-    const [hours, minutes] = editTime.split(':').map(Number);
-    newStartTime.setHours(hours, minutes);
+    const [timeHours, timeMinutes] = editTime.split(':').map(Number);
+    newStartTime.setHours(timeHours, timeMinutes);
 
     const newEndTime = new Date(newStartTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
 
@@ -192,8 +203,8 @@ export default function SchedulePage() {
                 const day = new Date(eventStartDate);
                 day.setDate(day.getDate() + i);
                 availability.push({
-                    startTime: new Date(day.setHours(9, 0, 0, 0)).toISOString(),
-                    endTime: new Date(day.setHours(21, 0, 0, 0)).toISOString(),
+                    startTime: new Date(day.setHours(8, 0, 0, 0)).toISOString(),
+                    endTime: new Date(day.setHours(18, 0, 0, 0)).toISOString(),
                 });
             }
             acc[venue.id!] = availability;
@@ -221,8 +232,8 @@ export default function SchedulePage() {
             venueAvailability,
             teamPreferences,
             timeConstraints: { 
-                earliestStartTime: new Date(new Date(event.startDate).setHours(9,0,0,0)).toISOString(),
-                latestEndTime: new Date(new Date(event.startDate).setHours(22,0,0,0)).toISOString(),
+                earliestStartTime: new Date(new Date(event.startDate).setHours(8,0,0,0)).toISOString(),
+                latestEndTime: new Date(new Date(event.startDate).setHours(18,0,0,0)).toISOString(),
             },
             matches: aiMatchesToSchedule,
             sports: sportsData,
