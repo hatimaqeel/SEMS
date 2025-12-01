@@ -68,7 +68,7 @@ interface EventFormProps {
 const generateTimeSlots = () => {
     const slots = [];
     for (let h = 8; h < 18; h++) {
-        for (let m = 0; m < 60; m += 30) {
+        for (let m = 0; m < 60; m += 60) {
             if (h === 18 && m > 0) continue;
             const hour = h.toString().padStart(2, '0');
             const minute = m.toString().padStart(2, '0');
