@@ -4,10 +4,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase";
 import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { collection, doc, setDoc } from "firebase/firestore";
-import type { Event, Sport, Venue, Department } from "@/lib/types";
+import type { Event, Sport, Venue, Department, AppSettings } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -65,11 +65,13 @@ export default function EventsPage() {
   const sportsRef = useMemoFirebase(() => collection(firestore, "sports"), [firestore]);
   const venuesRef = useMemoFirebase(() => collection(firestore, "venues"), [firestore]);
   const departmentsRef = useMemoFirebase(() => collection(firestore, "departments"), [firestore]);
+  const settingsRef = useMemoFirebase(() => doc(firestore, 'settings', 'app'), [firestore]);
 
   const { data: events, isLoading: isLoadingEvents } = useCollection<Event>(eventsRef);
   const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
   const { data: venues, isLoading: isLoadingVenues } = useCollection<Venue>(venuesRef);
   const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
+  const { data: appSettings, isLoading: isLoadingSettings } = useDoc<AppSettings>(settingsRef);
 
   const handleAddClick = () => {
     setSelectedEvent(undefined);
@@ -269,11 +271,12 @@ export default function EventsPage() {
             </DialogHeader>
             <ScrollArea className="max-h-[70vh] md:max-h-[80vh]">
               <div className="py-4 pr-6">
-                {(isLoadingSports || isLoadingVenues || isLoadingDepts) ? <p>Loading form data...</p> : (
+                {(isLoadingSports || isLoadingVenues || isLoadingDepts || isLoadingSettings) ? <p>Loading form data...</p> : (
                   <EventForm
                     sports={sports || []}
                     venues={venues || []}
                     departments={departments || []}
+                    settings={appSettings}
                     initialData={selectedEvent}
                     onSubmit={handleFormSubmit}
                     isSubmitting={isSubmitting}

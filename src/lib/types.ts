@@ -1,5 +1,10 @@
 
 
+export type AppSettings = {
+    secretKey: string;
+    eventSchedulingWindowMonths?: number;
+}
+
 export type Sport = {
   id?: string;
   sportId: string;

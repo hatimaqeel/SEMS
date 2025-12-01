@@ -31,11 +31,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { Event, Sport, Venue, Department } from '@/lib/types';
+import type { Event, Sport, Venue, Department, AppSettings } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { useMemo } from 'react';
 
-const formSchema = z.object({
+// This function now returns a schema that depends on the scheduling window
+const createFormSchema = (schedulingWindowMonths: number) => z.object({
   name: z.string().min(2, 'Event name must be at least 2 characters.'),
   sportType: z.string({ required_error: 'Please select a sport.' }),
   department: z.string({ required_error: 'Please select a department.' }),
@@ -45,29 +47,30 @@ const formSchema = z.object({
     today.setHours(0, 0, 0, 0); // Set to start of today
     return date >= today;
   }, 'Event date cannot be in the past.').refine(date => {
-    const sixMonthsFromNow = addMonths(new Date(), 6);
-    return date <= sixMonthsFromNow;
-  }, 'Event cannot be scheduled more than 6 months in advance.'),
+    const maxDate = addMonths(new Date(), schedulingWindowMonths);
+    return date <= maxDate;
+  }, `Event cannot be scheduled more than ${schedulingWindowMonths} months in advance.`),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).').refine(time => {
     const [hours] = time.split(':').map(Number);
-    return hours >= 8 && hours < 18; // 8 AM to 5:59 PM (as 6:00 PM is 18:00)
+    return hours >= 8 && hours < 18;
   }, 'Start time must be between 8:00 AM and 6:00 PM.'),
   description: z.string().min(10, 'Description must be at least 10 characters.').max(200, 'Description cannot exceed 200 characters.'),
   format: z.enum(['knockout', 'round-robin'], { required_error: 'Please select a tournament format.'}),
 });
 
-export type EventFormValues = z.infer<typeof formSchema>;
+
+export type EventFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 interface EventFormProps {
   sports: Sport[];
   venues: Venue[];
   departments: Department[];
+  settings: AppSettings | null;
   initialData?: Event;
   onSubmit: (values: EventFormValues) => void;
   isSubmitting: boolean;
 }
 
-// Helper to generate time slots
 const generateTimeSlots = () => {
     const slots = [];
     for (let h = 8; h < 18; h++) {
@@ -85,10 +88,14 @@ export function EventForm({
   sports,
   venues,
   departments,
+  settings,
   initialData,
   onSubmit,
   isSubmitting,
 }: EventFormProps) {
+  const schedulingWindowMonths = settings?.eventSchedulingWindowMonths || 12;
+  const formSchema = useMemo(() => createFormSchema(schedulingWindowMonths), [schedulingWindowMonths]);
+
   const form = useForm<EventFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: initialData
@@ -111,7 +118,7 @@ export function EventForm({
 
   const timeSlots = generateTimeSlots();
   const today = new Date();
-  const sixMonthsFromNow = addMonths(today, 6);
+  const maxSchedulingDate = useMemo(() => addMonths(today, schedulingWindowMonths), [schedulingWindowMonths]);
 
   return (
     <Form {...form}>
@@ -239,10 +246,12 @@ export function EventForm({
                         selected={field.value}
                         onSelect={field.onChange}
                         fromDate={today}
-                        toDate={sixMonthsFromNow}
-                        disabled={(date) =>
-                          date < today || date > sixMonthsFromNow
-                        }
+                        toDate={maxSchedulingDate}
+                        disabled={(date) => {
+                           const todayNormalized = new Date();
+                           todayNormalized.setHours(0,0,0,0);
+                           return date < todayNormalized || date > maxSchedulingDate;
+                        }}
                         initialFocus
                     />
                     </PopoverContent>

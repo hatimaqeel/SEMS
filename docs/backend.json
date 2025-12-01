@@ -366,6 +366,10 @@
         "secretKey": {
           "type": "string",
           "description": "The secret key required for creating new admin accounts."
+        },
+        "eventSchedulingWindowMonths": {
+          "type": "number",
+          "description": "The number of months in advance an event can be scheduled."
         }
       },
       "required": ["secretKey"]
