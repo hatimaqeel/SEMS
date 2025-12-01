@@ -271,12 +271,13 @@ export default function EventsPage() {
             </DialogHeader>
             <ScrollArea className="max-h-[70vh] md:max-h-[80vh]">
               <div className="py-4 pr-6">
-                {(isLoadingSports || isLoadingVenues || isLoadingDepts || isLoadingSettings) ? <p>Loading form data...</p> : (
+                {(isLoadingSports || isLoadingVenues || isLoadingDepts || isLoadingSettings || isLoadingEvents) ? <p>Loading form data...</p> : (
                   <EventForm
                     sports={sports || []}
                     venues={venues || []}
                     departments={departments || []}
                     settings={appSettings}
+                    events={events || []}
                     initialData={selectedEvent}
                     onSubmit={handleFormSubmit}
                     isSubmitting={isSubmitting}
