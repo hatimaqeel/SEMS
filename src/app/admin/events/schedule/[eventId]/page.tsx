@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { optimizeScheduleWithAI } from '@/ai/flows/optimize-schedule-with-ai';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, Bot, Loader, Calendar, Clock, MoreHorizontal, Edit, PlusCircle } from 'lucide-react';
+import { AlertTriangle, Bot, Loader, Calendar, Clock, MoreHorizontal, Edit } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -62,15 +62,6 @@ export default function SchedulePage() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editVenue, setEditVenue] = useState('');
   const [editTime, setEditTime] = useState('');
-  
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [manualTeamA, setManualTeamA] = useState('');
-  const [manualTeamB, setManualTeamB] = useState('');
-  const [manualVenue, setManualVenue] = useState('');
-  const [manualTime, setManualTime] = useState('');
-  const [manualRound, setManualRound] = useState('1');
-  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
-
 
   const eventRef = useMemoFirebase(() => doc(firestore, 'events', eventId), [firestore, eventId]);
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
@@ -146,69 +137,7 @@ export default function SchedulePage() {
       setIsSubmittingEdit(false);
     }
   };
-  
-  const handleManualAddClick = () => {
-    setManualTeamA('');
-    setManualTeamB('');
-    setManualVenue('');
-    setManualTime('');
-    setManualRound('1');
-    setIsManualModalOpen(true);
-  };
-  
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualTeamA || !manualTeamB || !manualVenue || !manualTime || !manualRound || !event || !sports) {
-      toast({ variant: 'destructive', title: 'Error', description: 'All fields are required.' });
-      return;
-    }
-    
-    if (manualTeamA === manualTeamB) {
-      toast({ variant: 'destructive', title: 'Error', description: 'A team cannot play against itself.' });
-      return;
-    }
 
-    setIsSubmittingManual(true);
-    
-    const sportDetails = sports.find(s => s.sportName === event.sportType);
-    if (!sportDetails) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Sport details not found.' });
-      setIsSubmittingManual(false);
-      return;
-    }
-    
-    const startTime = new Date(event.startDate);
-    const [hours, minutes] = manualTime.split(':').map(Number);
-    startTime.setHours(hours, minutes);
-    
-    const endTime = new Date(startTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
-
-    const newMatch: Match = {
-        matchId: `m${Date.now()}`,
-        teamAId: manualTeamA,
-        teamBId: manualTeamB,
-        venueId: manualVenue,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        round: parseInt(manualRound, 10),
-        sportType: event.sportType,
-        status: 'scheduled',
-        winnerTeamId: '',
-    };
-    
-    const updatedMatches = [...(event.matches || []), newMatch];
-
-    try {
-        await updateDoc(eventRef, { matches: updatedMatches });
-        toast({ title: 'Match Added', description: 'The match has been manually added to the schedule.' });
-        setIsManualModalOpen(false);
-    } catch (error: any) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
-    } finally {
-      setIsSubmittingManual(false);
-    }
-  };
 
   const handleGenerateSchedule = async () => {
     if (!event || !venues || !sports) {
@@ -409,10 +338,6 @@ export default function SchedulePage() {
         description={`Manage and view the match schedule for this event.`}
       >
         <div className="flex gap-2">
-            <Button variant="outline" onClick={handleManualAddClick} disabled={isGenerating}>
-                 <PlusCircle className="mr-2 h-4 w-4" />
-                 Add Manual Match
-            </Button>
             <Button onClick={handleGenerateSchedule} disabled={isGenerating || (event.matches && event.matches.length > 0)}>
             {isGenerating ? (
                 <>
@@ -554,66 +479,6 @@ export default function SchedulePage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-        <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-                <DialogTitle>Add Manual Match</DialogTitle>
-                <DialogDescription>Create a single match by specifying the teams, venue, and time.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleManualSubmit} className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="manual-team-a">Team A</Label>
-                        <Select onValueChange={setManualTeamA} value={manualTeamA} required>
-                            <SelectTrigger><SelectValue placeholder="Select Team A" /></SelectTrigger>
-                            <SelectContent>
-                                {approvedTeams.map(team => (
-                                    <SelectItem key={team.teamId} value={team.teamId}>{team.teamName}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="manual-team-b">Team B</Label>
-                         <Select onValueChange={setManualTeamB} value={manualTeamB} required>
-                            <SelectTrigger><SelectValue placeholder="Select Team B" /></SelectTrigger>
-                            <SelectContent>
-                                {approvedTeams.map(team => (
-                                    <SelectItem key={team.teamId} value={team.teamId}>{team.teamName}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="manual-venue">Venue</Label>
-                    <Select onValueChange={setManualVenue} value={manualVenue} required>
-                        <SelectTrigger><SelectValue placeholder="Select Venue" /></SelectTrigger>
-                        <SelectContent>
-                            {venues?.map(venue => (
-                                <SelectItem key={venue.id!} value={venue.id!}>{venue.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="manual-time">Start Time</Label>
-                        <Input id="manual-time" type="time" value={manualTime} onChange={e => setManualTime(e.target.value)} required />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="manual-round">Round</Label>
-                        <Input id="manual-round" type="number" value={manualRound} onChange={e => setManualRound(e.target.value)} min="1" required />
-                    </div>
-                </div>
-                <Button type="submit" disabled={isSubmittingManual} className="mt-4">
-                    {isSubmittingManual ? 'Adding Match...' : 'Add Match to Schedule'}
-                </Button>
-            </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
-
-    
