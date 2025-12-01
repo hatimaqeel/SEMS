@@ -13,8 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { optimizeScheduleWithAI } from '@/ai/flows/optimize-schedule-with-ai';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, Bot, Loader, Calendar, Clock } from 'lucide-react';
+import { AlertTriangle, Bot, Loader, Calendar, Clock, MoreHorizontal, Edit } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 function generateKnockoutPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
     const pairs: { teamAId: string, teamBId: string }[] = [];
@@ -52,6 +57,12 @@ export default function SchedulePage() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [editVenue, setEditVenue] = useState('');
+  const [editTime, setEditTime] = useState('');
+
 
   const eventRef = useMemoFirebase(() => doc(firestore, 'events', eventId), [firestore, eventId]);
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
@@ -64,6 +75,69 @@ export default function SchedulePage() {
 
   const getTeamName = (teamId: string) => teamId === 'TBD' ? 'TBD' : (event?.teams.find(t => t.teamId === teamId)?.teamName || teamId);
   const getVenueName = (venueId: string) => venues?.find(v => v.id === venueId)?.name || venueId;
+
+  const handleEditClick = (match: Match) => {
+    if (match.status === 'completed') {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Edit Completed Match',
+        description: 'This match has already been completed.',
+      });
+      return;
+    }
+    setSelectedMatch(match);
+    setEditVenue(match.venueId);
+    setEditTime(match.startTime ? new Date(match.startTime).toTimeString().substring(0, 5) : '');
+    setIsEditModalOpen(true);
+  };
+  
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMatch || !event || !sports) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Required data is not available.' });
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+
+    const sportDetails = sports.find(s => s.sportName === event.sportType);
+    if (!sportDetails) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Sport details not found.' });
+      setIsSubmittingEdit(false);
+      return;
+    }
+
+    const newStartTime = new Date(event.startDate);
+    const [hours, minutes] = editTime.split(':').map(Number);
+    newStartTime.setHours(hours, minutes);
+
+    const newEndTime = new Date(newStartTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
+
+    const updatedMatches = event.matches.map(m => {
+      if (m.matchId === selectedMatch.matchId) {
+        return {
+          ...m,
+          venueId: editVenue,
+          startTime: newStartTime.toISOString(),
+          endTime: newEndTime.toISOString(),
+          status: 'scheduled' as const, // Ensure status is set
+        };
+      }
+      return m;
+    });
+
+    try {
+      await updateDoc(eventRef, { matches: updatedMatches });
+      toast({ title: 'Match Updated', description: 'The match has been successfully rescheduled.' });
+      setIsEditModalOpen(false);
+      setSelectedMatch(null);
+    } catch (error: any) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   const handleGenerateSchedule = async () => {
     if (!event || !venues || !sports) {
@@ -301,6 +375,7 @@ export default function SchedulePage() {
                 <TableHead>Venue</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -327,11 +402,30 @@ export default function SchedulePage() {
                       ) : 'TBD'}
                     </TableCell>
                     <TableCell>{match.status}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleEditClick(match)}
+                            disabled={match.status === 'completed'}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Match
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
+                  <TableCell colSpan={6} className="text-center h-24">
                     No matches to display.
                   </TableCell>
                 </TableRow>
@@ -340,6 +434,48 @@ export default function SchedulePage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Match Schedule</DialogTitle>
+            <DialogDescription>
+              Modify the venue and time for this match.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-venue">Venue</Label>
+              <Select onValueChange={setEditVenue} value={editVenue} disabled={isSubmittingEdit}>
+                <SelectTrigger id="edit-venue">
+                  <SelectValue placeholder="Select a venue" />
+                </SelectTrigger>
+                <SelectContent>
+                  {venues?.map(venue => (
+                    <SelectItem key={venue.id!} value={venue.id!}>
+                      {venue.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-time">Start Time</Label>
+              <Input
+                id="edit-time"
+                type="time"
+                value={editTime}
+                onChange={e => setEditTime(e.target.value)}
+                disabled={isSubmittingEdit}
+              />
+            </div>
+            <Button type="submit" disabled={isSubmittingEdit}>
+              {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
