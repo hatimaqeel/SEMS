@@ -64,6 +64,20 @@ interface EventFormProps {
   isSubmitting: boolean;
 }
 
+// Helper to generate time slots
+const generateTimeSlots = () => {
+    const slots = [];
+    for (let h = 8; h < 18; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            if (h === 18 && m > 0) continue;
+            const hour = h.toString().padStart(2, '0');
+            const minute = m.toString().padStart(2, '0');
+            slots.push(`${hour}:${minute}`);
+        }
+    }
+    return slots;
+};
+
 export function EventForm({
   sports,
   venues,
@@ -91,6 +105,8 @@ export function EventForm({
           format: 'knockout',
         },
   });
+
+  const timeSlots = generateTimeSlots();
 
   return (
     <Form {...form}>
@@ -235,11 +251,22 @@ export function EventForm({
                 name="startTime"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Time</FormLabel>
-                    <FormControl>
-                        <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
+                        <FormLabel>Time</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a start time" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {timeSlots.map(time => (
+                                    <SelectItem key={time} value={time}>
+                                        {new Date(`1970-01-01T${time}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'UTC' })}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
                     </FormItem>
                 )}
             />
