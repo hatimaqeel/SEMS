@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,7 +66,6 @@ interface EventFormProps {
   venues: Venue[];
   departments: Department[];
   settings: AppSettings | null;
-  events: Event[];
   initialData?: Event;
   onSubmit: (values: EventFormValues) => void;
   isSubmitting: boolean;
@@ -90,7 +89,6 @@ export function EventForm({
   venues,
   departments,
   settings,
-  events,
   initialData,
   onSubmit,
   isSubmitting,
@@ -117,45 +115,6 @@ export function EventForm({
           format: 'knockout',
         },
   });
-  
-  const watchedDate = useWatch({ control: form.control, name: 'startDate' });
-  const watchedTime = useWatch({ control: form.control, name: 'startTime' });
-  const watchedSport = useWatch({ control: form.control, name: 'sportType'});
-
-  const bookedVenues = useMemo(() => {
-    const booked = new Set<string>();
-    if (!watchedDate || !watchedTime || !watchedSport) return booked;
-
-    const selectedSport = sports.find(s => s.sportName === watchedSport);
-    if (!selectedSport) return booked;
-
-    const proposedStartTime = new Date(watchedDate);
-    const [hours, minutes] = watchedTime.split(':').map(Number);
-    proposedStartTime.setHours(hours, minutes, 0, 0);
-
-    const proposedEndTime = new Date(proposedStartTime.getTime() + selectedSport.defaultDurationMinutes * 60000);
-
-    for (const event of events) {
-      // Exclude the event being edited from conflict checking
-      if (initialData && event.id === initialData.id) continue;
-
-      for (const match of event.matches) {
-        if (!match.startTime || !match.endTime || !match.venueId) continue;
-        const existingStart = new Date(match.startTime);
-        const existingEnd = new Date(match.endTime);
-
-        // Check for time overlap
-        if (
-          proposedStartTime < existingEnd &&
-          proposedEndTime > existingStart
-        ) {
-          booked.add(match.venueId);
-        }
-      }
-    }
-    return booked;
-  }, [watchedDate, watchedTime, watchedSport, events, sports, initialData]);
-
 
   const timeSlots = generateTimeSlots();
   const today = new Date();
@@ -308,28 +267,18 @@ export function EventForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Venue</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchedDate || !watchedTime}>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={!watchedDate || !watchedTime ? "Select a date and time first" : "Select a venue"} />
+                    <SelectValue placeholder="Select a venue" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {venues.map(venue => {
-                    const isBooked = bookedVenues.has(venue.id!);
-                    return (
-                        <SelectItem key={venue.id} value={venue.id!} disabled={isBooked}>
-                          <div className="flex justify-between items-center w-full">
-                            <span>{venue.name}</span>
-                            {isBooked ? (
-                                <span className="text-xs text-destructive ml-2">(Booked)</span>
-                            ) : (
-                                <span className="text-xs text-green-500 ml-2">(Available)</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                    )
-                  })}
+                  {venues.map(venue => (
+                    <SelectItem key={venue.id} value={venue.id!}>
+                      {venue.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />

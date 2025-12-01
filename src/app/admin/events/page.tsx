@@ -277,7 +277,6 @@ export default function EventsPage() {
                     venues={venues || []}
                     departments={departments || []}
                     settings={appSettings}
-                    events={events || []}
                     initialData={selectedEvent}
                     onSubmit={handleFormSubmit}
                     isSubmitting={isSubmitting}
