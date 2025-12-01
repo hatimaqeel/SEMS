@@ -120,17 +120,18 @@ export function EventForm({
   
   const watchedDate = useWatch({ control: form.control, name: 'startDate' });
   const watchedTime = useWatch({ control: form.control, name: 'startTime' });
+  const watchedSport = useWatch({ control: form.control, name: 'sportType'});
 
   const bookedVenues = useMemo(() => {
     const booked = new Set<string>();
-    if (!watchedDate || !watchedTime) return booked;
+    if (!watchedDate || !watchedTime || !watchedSport) return booked;
 
-    const selectedSport = sports.find(s => s.sportName === form.getValues('sportType'));
+    const selectedSport = sports.find(s => s.sportName === watchedSport);
     if (!selectedSport) return booked;
 
     const proposedStartTime = new Date(watchedDate);
     const [hours, minutes] = watchedTime.split(':').map(Number);
-    proposedStartTime.setHours(hours, minutes);
+    proposedStartTime.setHours(hours, minutes, 0, 0);
 
     const proposedEndTime = new Date(proposedStartTime.getTime() + selectedSport.defaultDurationMinutes * 60000);
 
@@ -139,7 +140,7 @@ export function EventForm({
       if (initialData && event.id === initialData.id) continue;
 
       for (const match of event.matches) {
-        if (!match.startTime || !match.endTime) continue;
+        if (!match.startTime || !match.endTime || !match.venueId) continue;
         const existingStart = new Date(match.startTime);
         const existingEnd = new Date(match.endTime);
 
@@ -153,7 +154,7 @@ export function EventForm({
       }
     }
     return booked;
-  }, [watchedDate, watchedTime, events, sports, form, initialData]);
+  }, [watchedDate, watchedTime, watchedSport, events, sports, initialData]);
 
 
   const timeSlots = generateTimeSlots();
