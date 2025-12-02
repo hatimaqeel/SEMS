@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -17,7 +18,7 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
 
@@ -65,6 +66,12 @@ export default function LoginPage() {
         }
 
         const userData = userDoc.data() as User;
+        
+        // Sync Firestore with Auth verification status
+        if (userData.emailVerified === false && user.emailVerified === true) {
+            await updateDoc(userDocRef, { emailVerified: true });
+        }
+
 
         // 3. Handle deactivated user
         if (userData.status === 'deactivated') {

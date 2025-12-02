@@ -11,7 +11,7 @@ import {
   deleteDoc,
   getDoc,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, sendEmailVerification } from 'firebase/auth';
 import type { User, Department } from '@/lib/types';
 import {
   Table,
@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { MoreHorizontal, PlusCircle, Edit, Trash, UserCog, UserCheck, UserX } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit, Trash, UserCog, UserCheck, UserX, CheckCircle, XCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
@@ -133,7 +133,13 @@ const UserTable = ({
               <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
             </TableCell>
              <TableCell>
-                <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
+                <div className='flex flex-col gap-1'>
+                    <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
+                    <Badge variant={user.emailVerified ? 'secondary' : 'outline'} className="flex items-center gap-1 w-fit">
+                        {user.emailVerified ? <CheckCircle className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-muted-foreground" />}
+                        {user.emailVerified ? 'Verified' : 'Not Verified'}
+                    </Badge>
+                </div>
             </TableCell>
             <TableCell className="text-right">
               <DropdownMenu>
@@ -278,11 +284,15 @@ export default function UsersPage() {
         }
     }
     
+    // We use a temporary auth instance here to avoid conflicts with the main app's auth state
     const tempAuth = getAuth();
 
     try {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
+
+        // Send verification email
+        await sendEmailVerification(newUser);
 
         const userDocRef = doc(firestore, 'users', newUser.uid);
         
@@ -292,7 +302,8 @@ export default function UsersPage() {
             email: email,
             role: role,
             dept: department,
-            status: 'active'
+            status: 'active',
+            emailVerified: false, // Set to false initially
         };
 
         if (role === 'student') {
@@ -306,8 +317,8 @@ export default function UsersPage() {
         await setDoc(userDocRef, userData);
         
         toast({
-            title: 'User Created',
-            description: `The ${role} account for ${name} has been created.`,
+            title: 'User Created & Verification Sent',
+            description: `The ${role} account for ${name} has been created. A verification email has been sent.`,
         });
 
         setIsFormOpen(false);
@@ -496,7 +507,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Create a new student or administrator account.
+              Create a new student or administrator account. A verification email will be sent.
             </DialogDescription>
           </DialogHeader>
           <Tabs value={role} onValueChange={(v) => setRole(v as 'student' | 'admin')}>
@@ -658,5 +669,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

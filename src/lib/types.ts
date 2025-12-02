@@ -89,6 +89,7 @@ export type User = {
   registrationNumber?: string;
   gender?: 'male' | 'female' | 'other';
   photoURL?: string;
+  emailVerified?: boolean;
 };
 
 export type JoinRequest = {
