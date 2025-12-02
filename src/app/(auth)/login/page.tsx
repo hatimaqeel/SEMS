@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -21,6 +20,7 @@ import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
+import { ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -190,6 +190,14 @@ export default function LoginPage() {
           <Link href="/signup" className="underline">
             Sign up
           </Link>
+        </div>
+        <div className="mt-6 text-center">
+            <Button variant="link" asChild className="text-muted-foreground">
+                <Link href="/">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Home
+                </Link>
+            </Button>
         </div>
       </CardContent>
     </Card>

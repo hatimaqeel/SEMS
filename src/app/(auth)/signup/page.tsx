@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -28,7 +27,7 @@ import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
 import type { Department, AppSettings } from '@/lib/types';
-import { MailCheck } from 'lucide-react';
+import { MailCheck, ArrowLeft } from 'lucide-react';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function SignupPage() {
@@ -246,6 +245,14 @@ export default function SignupPage() {
           <Link href="/login" className="underline">
             Log in
           </Link>
+        </div>
+        <div className="mt-6 text-center">
+            <Button variant="link" asChild className="text-muted-foreground">
+                <Link href="/">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Home
+                </Link>
+            </Button>
         </div>
       </CardContent>
     </Card>
