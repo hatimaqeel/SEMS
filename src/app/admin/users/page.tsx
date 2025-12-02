@@ -63,7 +63,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { deleteUser } from '@/ai/flows/delete-user';
 
 const UserTable = ({ 
     users, 
@@ -414,16 +413,14 @@ export default function UsersPage() {
     if (!selectedUser) return;
     
     try {
-        // Step 1: Call the secure backend flow to delete the Auth user.
-        await deleteUser({ uid: selectedUser.userId });
-
-        // Step 2: Delete the Firestore document.
+        // For now, we only delete the Firestore document.
+        // A secure backend flow would be needed to delete the Auth user.
         const userDocRef = doc(firestore, 'users', selectedUser.userId);
         await deleteDoc(userDocRef);
 
         toast({
             title: 'User Deleted',
-            description: `${selectedUser.displayName} has been permanently deleted from the system.`,
+            description: `${selectedUser.displayName}'s data has been deleted from the database. Their authentication account may still exist.`,
         });
     } catch (error: any) {
         console.error("Error deleting user:", error);
