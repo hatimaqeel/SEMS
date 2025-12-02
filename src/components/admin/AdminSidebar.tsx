@@ -36,7 +36,7 @@ const mainNavItems = [
 ];
 
 const bottomNavItems: { href: string, icon: any, label: string }[] = [
-  // { href: "/admin/settings", icon: Settings, label: "Settings" },
+  { href: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 
 export function AdminSidebar() {
