@@ -235,8 +235,8 @@ export default function SchedulePage() {
             else if (numMatchesThisRound <= 2 && roundIndex > 1) roundName = "Semifinals";
             else if (numMatchesThisRound <= 4 && roundIndex > 1) roundName = "Quarterfinals";
 
-            const roundMatches = pairs.map((pair) => ({
-                matchId: `m${Date.now() + allMatchesToSchedule.length}`,
+            const roundMatches = pairs.map((pair, index) => ({
+                matchId: `m${Date.now() + allMatchesToSchedule.length + index}`,
                 ...pair,
                 sportType: event.sportType,
                 round: roundIndex,
