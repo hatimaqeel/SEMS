@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -8,9 +9,10 @@ import { PageHeader } from '@/components/admin/PageHeader';
 import { Calendar, Clock, Loader, Shirt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { addDays, format, isSameDay } from 'date-fns';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CalendarMatch extends Match {
     eventName: string;
@@ -59,6 +61,7 @@ const Day = ({ date, matches, getTeamById }: { date: Date; matches: CalendarMatc
 export default function VenueCalendarPage() {
   const { venueId } = useParams() as { venueId: string };
   const firestore = useFirestore();
+  const [daysToShow, setDaysToShow] = useState(7);
 
   const venueRef = useMemoFirebase(() => doc(firestore, 'venues', venueId), [firestore, venueId]);
   const { data: venue, isLoading: isLoadingVenue } = useDoc<Venue>(venueRef);
@@ -95,14 +98,24 @@ export default function VenueCalendarPage() {
   }
 
   const today = new Date();
-  const calendarDays = Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  const calendarDays = Array.from({ length: daysToShow }, (_, i) => addDays(today, i));
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title={`Calendar for ${venue?.name || 'Venue'}`}
-        description="Upcoming schedule for the next 7 days."
-      />
+        description={`Upcoming schedule for the next ${daysToShow} days.`}
+      >
+        <Select onValueChange={(value) => setDaysToShow(parseInt(value))} defaultValue={daysToShow.toString()}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select date range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">Next 7 Days</SelectItem>
+            <SelectItem value="30">Next 30 Days</SelectItem>
+          </SelectContent>
+        </Select>
+      </PageHeader>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {calendarDays.map(day => {
