@@ -75,6 +75,8 @@ export default function SignupPage() {
                 dept: studentDept,
                 registrationNumber: regNumber,
                 gender: studentGender,
+                status: 'active',
+                emailVerified: false,
             };
         } else if (formSubmitted === 'admin') {
             userData = {
@@ -83,6 +85,8 @@ export default function SignupPage() {
                 email: adminEmail,
                 role: 'admin',
                 dept: adminDept,
+                status: 'active',
+                emailVerified: false,
             };
         }
 
@@ -139,6 +143,7 @@ export default function SignupPage() {
     
     setLoading(true);
     
+    // This should be an environment variable in a real app
     const ADMIN_SECRET_KEY = 'unisport@cust2025';
     if (secretKey !== ADMIN_SECRET_KEY) {
         toast({

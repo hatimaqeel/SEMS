@@ -11,7 +11,7 @@ import {
   deleteDoc,
   getDoc,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, getAuth, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, sendEmailVerification, signOut } from 'firebase/auth';
 import type { User, Department } from '@/lib/types';
 import {
   Table,
@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { MoreHorizontal, PlusCircle, Edit, Trash, UserCog, UserCheck, UserX, CheckCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit, Trash, UserCog, UserCheck, UserX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
@@ -63,6 +63,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { firebaseConfig } from '@/firebase/config';
+import { initializeApp } from 'firebase/app';
 
 const UserTable = ({ 
     users, 
@@ -132,13 +134,7 @@ const UserTable = ({
               <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
             </TableCell>
              <TableCell>
-                <div className='flex flex-col gap-1'>
-                    <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
-                    <Badge variant={user.emailVerified ? 'secondary' : 'outline'} className="flex items-center gap-1 w-fit">
-                        {user.emailVerified ? <CheckCircle className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-muted-foreground" />}
-                        {user.emailVerified ? 'Verified' : 'Not Verified'}
-                    </Badge>
-                </div>
+                <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
             </TableCell>
             <TableCell className="text-right">
               <DropdownMenu>
@@ -286,7 +282,8 @@ export default function UsersPage() {
     }
     
     // We use a temporary auth instance here to avoid conflicts with the main app's auth state
-    const tempAuth = getAuth();
+    const tempApp = initializeApp(firebaseConfig, `temp-app-${new Date().getTime()}`);
+    const tempAuth = getAuth(tempApp);
 
     try {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
@@ -316,6 +313,7 @@ export default function UsersPage() {
         }
 
         await setDoc(userDocRef, userData);
+        await signOut(tempAuth);
         
         toast({
             title: 'User Created & Verification Sent',
