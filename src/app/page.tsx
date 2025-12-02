@@ -10,16 +10,9 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { events } from "@/lib/placeholder-data";
 import { Calendar, MapPin } from "lucide-react";
 
-// The data is local, but we'll simulate an async fetch.
-// This is a more robust pattern for data fetching in Next.js Server Components.
-const getEvents = async () => {
-  return Promise.resolve(events);
-}
-
-export default async function Home() {
+export default function Home() {
   const heroImage = PlaceHolderImages.find(p => p.id === 'hero');
-  const upcomingEvents = await getEvents();
-
+  const upcomingEvents = events;
 
   const getSportImage = (sportType: string) => {
     const sportImage = PlaceHolderImages.find(p => p.id === sportType.toLowerCase());
