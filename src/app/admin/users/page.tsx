@@ -236,7 +236,6 @@ export default function UsersPage() {
   }, [currentUser, isUserLoading, firestore]);
 
   const usersRef = useMemoFirebase(() => {
-    // Only fetch users if the current user is an admin
     if (isCheckingAdmin || !isAdmin) return null;
     return collection(firestore, 'users');
   }, [firestore, isAdmin, isCheckingAdmin]);
@@ -265,7 +264,6 @@ export default function UsersPage() {
   
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     setIsSubmitting(true);
     
     if (role === 'admin') {
@@ -288,15 +286,24 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
 
+        const pendingUserData = {
+            userId: newUser.uid,
+            displayName: name,
+            email,
+            role,
+            dept: department,
+            registrationNumber: regNumber,
+            gender: gender,
+        };
+
+        await setDoc(doc(firestore, 'pendingUsers', newUser.uid), pendingUserData);
         await sendEmailVerification(newUser);
-        
-        // DO NOT create the user document here. It will be created on first verified login.
         
         await signOut(tempAuth);
         
         toast({
             title: 'Verification Sent',
-            description: `A verification email has been sent to ${email}. The user will appear in the list after they verify and log in.`,
+            description: `A verification email has been sent to ${email}. The user must verify their email to be added to the list.`,
         });
 
         setIsFormOpen(false);
@@ -392,8 +399,6 @@ export default function UsersPage() {
     if (!selectedUser) return;
     
     try {
-        // For now, we only delete the Firestore document.
-        // A secure backend flow would be needed to delete the Auth user.
         const userDocRef = doc(firestore, 'users', selectedUser.userId);
         await deleteDoc(userDocRef);
 
@@ -645,3 +650,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    

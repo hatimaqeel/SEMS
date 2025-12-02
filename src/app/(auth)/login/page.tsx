@@ -18,7 +18,7 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
 
@@ -53,21 +53,48 @@ export default function LoginPage() {
         let userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-           const newUser: Omit<User, 'id'> = {
-            userId: user.uid,
-            displayName: user.displayName || user.email || 'New User',
-            email: user.email!,
-            role: 'student', 
-            dept: 'Unassigned',
-            status: 'active',
-            emailVerified: true,
-          };
-          await setDoc(userDocRef, newUser);
-          userDoc = await getDoc(userDocRef);
-           toast({
-            title: 'Account Verified!',
-            description: 'Your profile has been created. Welcome!',
-          });
+           // Check for pending user data
+           const pendingUserDocRef = doc(firestore, 'pendingUsers', user.uid);
+           const pendingUserDoc = await getDoc(pendingUserDocRef);
+
+           if (pendingUserDoc.exists()) {
+             const pendingData = pendingUserDoc.data();
+             const newUser: Omit<User, 'id'> = {
+                userId: user.uid,
+                displayName: pendingData.displayName || user.email || 'New User',
+                email: user.email!,
+                role: pendingData.role || 'student',
+                dept: pendingData.dept || 'Unassigned',
+                registrationNumber: pendingData.registrationNumber,
+                gender: pendingData.gender,
+                status: 'active',
+                emailVerified: true,
+             };
+             await setDoc(userDocRef, newUser);
+             await deleteDoc(pendingUserDocRef); // Clean up pending document
+             userDoc = await getDoc(userDocRef);
+             toast({
+                title: 'Account Verified!',
+                description: 'Your profile has been created. Welcome!',
+            });
+           } else {
+             // Fallback for users who signed up themselves
+             const newUser: Omit<User, 'id'> = {
+                userId: user.uid,
+                displayName: user.displayName || user.email || 'New User',
+                email: user.email!,
+                role: 'student', 
+                dept: 'Unassigned',
+                status: 'active',
+                emailVerified: true,
+              };
+              await setDoc(userDocRef, newUser);
+              userDoc = await getDoc(userDocRef);
+               toast({
+                title: 'Account Verified!',
+                description: 'Your profile has been created. Welcome!',
+              });
+           }
         }
         
         const userData = userDoc.data() as User;
@@ -171,3 +198,5 @@ export default function LoginPage() {
     </Card>
   );
 }
+
+    

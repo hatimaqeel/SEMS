@@ -296,6 +296,25 @@
         "email"
       ]
     },
+    "PendingUser": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "PendingUser",
+        "type": "object",
+        "description": "Represents a user account that is awaiting email verification.",
+        "properties": {
+            "userId": {
+                "type": "string",
+                "description": "The UID from Firebase Authentication."
+            },
+            "displayName": { "type": "string" },
+            "email": { "type": "string", "format": "email" },
+            "role": { "type": "string" },
+            "dept": { "type": "string" },
+            "registrationNumber": { "type": "string" },
+            "gender": { "type": "string" }
+        },
+        "required": ["userId", "displayName", "email", "role", "dept"]
+    },
     "Log": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Log",
@@ -539,6 +558,17 @@
           ]
         }
       },
+       {
+        "path": "/pendingUsers/{userId}",
+        "definition": {
+          "entityName": "PendingUser",
+          "schema": { "$ref": "#/backend/entities/PendingUser" },
+          "description": "Stores temporary user data before email verification. Document ID is the user's UID.",
+          "params": [
+            { "name": "userId", "description": "The UID of the pending user." }
+          ]
+        }
+      },
       {
         "path": "/events/{eventId}/logs/{logId}",
         "definition": {
@@ -610,3 +640,5 @@
     "reasoning": "The Firestore structure is designed to support a sports event management system, UniSport Central, with a focus on clear authorization, scalability, and maintainability. Authorization Independence is achieved by denormalizing role information into user documents and event-specific access control lists within each event's subcollections where needed. Path-based ownership is used for user-specific data, such as user profiles. For collaborative data like events and matches, a membership map (`members`) is used where appropriate. This structure avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging. Segregation of data based on access needs (e.g., public events versus admin-managed events) simplifies security rules. QAPs are supported through structural segregation and controlled access via role-based permissions. For example, only admins can `create`, `update`, or `delete` events, while users can `read` public event data and, in some cases, create teams or register for events if their role permits."
   }
 }
+
+    
