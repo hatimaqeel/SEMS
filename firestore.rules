@@ -11,7 +11,6 @@
  * - /events/{eventId}/teams/{teamId}: Data about teams participating in events.
  * - /events/{eventId}/matches/{matchId}: Data about matches scheduled for events.
  * - /users/{userId}: Private user profile data.
- * - /pendingUsers/{userId}: Temporary storage for user data before email verification.
  * - /events/{eventId}/logs/{logId}: Log entries for events.
  * - /brackets/{eventId}: Tournament bracket data for an event.
  *
@@ -30,7 +29,6 @@
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
  * - Users: Owner-only access for read/write. Admin can perform any action on any user.
- * - PendingUsers: Admin-only create. Owner-only read/delete for migrating data to the final user profile.
  * - Logs: Event-scoped access.
  */
 rules_version = '2';
@@ -153,19 +151,6 @@ service cloud.firestore {
       allow create: if isOwner(userId) || isAdmin();
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
-    }
-    
-    /**
-     * @description Manages temporary user data before email verification.
-     * @path /pendingUsers/{userId}
-     * @allow (get, delete): A user can read/delete their own pending profile during first login.
-     * @allow (create): An admin or the user themselves can create a pending profile.
-     * @principle Secure handoff of user data.
-     */
-    match /pendingUsers/{userId} {
-      allow get, delete: if isOwner(userId);
-      allow create: if isOwner(userId) || isAdmin();
-      allow list, update: if false;
     }
 
     /**

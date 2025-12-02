@@ -286,17 +286,7 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
 
-        const pendingUserData = {
-            userId: newUser.uid,
-            displayName: name,
-            email,
-            role,
-            dept: department,
-            registrationNumber: regNumber,
-            gender: gender,
-        };
-
-        await setDoc(doc(firestore, 'pendingUsers', newUser.uid), pendingUserData);
+        // Don't create a user doc here. Just send verification.
         await sendEmailVerification(newUser);
         
         await signOut(tempAuth);

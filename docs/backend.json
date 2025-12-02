@@ -296,25 +296,6 @@
         "email"
       ]
     },
-    "PendingUser": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "title": "PendingUser",
-        "type": "object",
-        "description": "Represents a user account that is awaiting email verification.",
-        "properties": {
-            "userId": {
-                "type": "string",
-                "description": "The UID from Firebase Authentication."
-            },
-            "displayName": { "type": "string" },
-            "email": { "type": "string", "format": "email" },
-            "role": { "type": "string" },
-            "dept": { "type": "string" },
-            "registrationNumber": { "type": "string" },
-            "gender": { "type": "string" }
-        },
-        "required": ["userId", "displayName", "email", "role", "dept"]
-    },
     "Log": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Log",
@@ -555,17 +536,6 @@
               "name": "userId",
               "description": "Unique identifier for the user."
             }
-          ]
-        }
-      },
-       {
-        "path": "/pendingUsers/{userId}",
-        "definition": {
-          "entityName": "PendingUser",
-          "schema": { "$ref": "#/backend/entities/PendingUser" },
-          "description": "Stores temporary user data before email verification. Document ID is the user's UID.",
-          "params": [
-            { "name": "userId", "description": "The UID of the pending user." }
           ]
         }
       },

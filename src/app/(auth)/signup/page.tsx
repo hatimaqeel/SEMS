@@ -29,13 +29,11 @@ import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import type { Department } from '@/lib/types';
 import { MailCheck } from 'lucide-react';
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signOut } from 'firebase/auth';
 
 export default function SignupPage() {
   const router = useRouter();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -79,29 +77,9 @@ export default function SignupPage() {
     }
 
     setLoading(true);
-    
-    // We use a temporary auth instance to avoid signing in the current user (if any)
-    const tempApp = initializeApp(firebaseConfig, `temp-signup-${Date.now()}`);
-    const tempAuth = getAuth(tempApp);
-
     try {
-      const userCredential = await initiateEmailSignUp(tempAuth, email, password);
-      const user = userCredential.user;
-
-      const pendingUserData = {
-        userId: user.uid,
-        displayName: name,
-        email: email,
-        role: isStudentTab ? 'student' : 'admin',
-        dept: department,
-        registrationNumber: isStudentTab ? regNumber : undefined,
-        gender: isStudentTab ? gender : undefined,
-      };
-
-      await setDoc(doc(firestore, "pendingUsers", user.uid), pendingUserData);
-
-      await signOut(tempAuth);
-
+      await initiateEmailSignUp(auth, email, password);
+      // Don't create the user doc here. It will be created on first verified login.
       setSignupComplete(true);
     } catch(error: any) {
          toast({
