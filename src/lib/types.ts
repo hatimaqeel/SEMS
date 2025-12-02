@@ -38,7 +38,6 @@ export type Event = {
   name:string;
   sportType: string;
   department: string;
-  venueId: string;
   startDate: string;
   startTime: string;
   description: string;

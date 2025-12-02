@@ -41,7 +41,6 @@ const createFormSchema = (schedulingWindowMonths: number) => z.object({
   name: z.string().min(2, 'Event name must be at least 2 characters.'),
   sportType: z.string({ required_error: 'Please select a sport.' }),
   department: z.string({ required_error: 'Please select a department.' }),
-  venueId: z.string({ required_error: 'Please select a venue.' }),
   startDate: z.date({ required_error: 'A date is required.' }).refine(date => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of today
@@ -95,7 +94,6 @@ export function EventForm({
           name: '',
           sportType: '',
           department: '',
-          venueId: '',
           startDate: undefined,
           startTime: '',
           description: '',
@@ -235,31 +233,6 @@ export function EventForm({
                 )}
             />
         </div>
-        
-         <FormField
-          control={form.control}
-          name="venueId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Venue</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a venue" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {venues.map(venue => (
-                    <SelectItem key={venue.id} value={venue.id!}>
-                      {venue.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         
         <FormField
           control={form.control}

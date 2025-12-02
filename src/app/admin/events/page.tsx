@@ -108,7 +108,6 @@ export default function EventsPage() {
       name: values.name,
       sportType: values.sportType,
       department: values.department,
-      venueId: values.venueId,
       startDate: values.startDate.toISOString().split('T')[0],
       startTime: values.startTime,
       description: values.description,
