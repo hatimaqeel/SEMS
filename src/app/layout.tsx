@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'UniSport Central',
-  description: 'The ultimate sports event management system for universities.',
+  title: 'SEMS',
+  description: 'Sports Event Management System',
 };
 
 export default function RootLayout({

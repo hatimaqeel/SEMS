@@ -96,7 +96,7 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Application Settings"
-        description="Manage global settings for the UniSport Central application."
+        description="Manage global settings for the SEMS application."
       />
 
       <form onSubmit={handleSubmit}>

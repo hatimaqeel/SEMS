@@ -37,7 +37,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative z-10 p-4">
             <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight font-headline">
-              Welcome to UniSport Central
+              Welcome to SEMS
             </h1>
             <p className="mt-4 max-w-2xl mx-auto text-lg md:text-xl text-primary-foreground/80">
               The ultimate sports event management system for universities. Streamline your tournaments from start to finish.
@@ -105,7 +105,7 @@ export default function Home() {
             <Logo />
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} UniSport Central. All rights reserved.
+            &copy; {new Date().getFullYear()} SEMS. All rights reserved.
           </p>
         </div>
       </footer>

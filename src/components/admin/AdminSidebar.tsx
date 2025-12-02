@@ -54,7 +54,7 @@ export function AdminSidebar() {
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2" prefetch={false}>
           <Trophy className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg font-headline group-data-[collapsible=icon]:hidden">UniSport Central</span>
+          <span className="font-bold text-lg font-headline group-data-[collapsible=icon]:hidden">SEMS</span>
         </Link>
       </SidebarHeader>
       <SidebarContent className="p-2">

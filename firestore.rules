@@ -1,7 +1,7 @@
 
 /**
- * @file UniSport Central - Firestore Security Rules
- * @description This ruleset enforces a role-based access control model for the UniSport Central application.
+ * @file SEMS - Firestore Security Rules
+ * @description This ruleset enforces a role-based access control model for the SEMS application.
  *
  * Data Structure:
  * - /sports/{sportId}: Public data about sports.

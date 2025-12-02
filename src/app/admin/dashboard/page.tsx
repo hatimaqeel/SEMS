@@ -78,7 +78,7 @@ export default function DashboardPage() {
           Dashboard
         </h1>
         <p className="text-muted-foreground mt-1">
-          An overview of all activities in UniSport Central.
+          An overview of all activities in SEMS.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
