@@ -97,17 +97,6 @@ export default function SchedulePage() {
       return;
     }
 
-    const [hours] = editTime.split(':').map(Number);
-    if (hours < 8 || hours >= 18) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Time',
-        description: 'Match time must be between 8:00 AM and 6:00 PM.',
-      });
-      return;
-    }
-
-
     setIsSubmittingEdit(true);
 
     const sportDetails = sports.find(s => s.sportName === event.sportType);
@@ -117,11 +106,47 @@ export default function SchedulePage() {
       return;
     }
 
-    const newStartTime = new Date(event.startDate);
-    const [timeHours, timeMinutes] = editTime.split(':').map(Number);
-    newStartTime.setHours(timeHours, timeMinutes);
+    const newStartTime = new Date(selectedMatch.startTime || event.startDate);
+    const [hours, minutes] = editTime.split(':').map(Number);
+    newStartTime.setHours(hours, minutes, 0, 0);
+    
+    if (hours < 8 || hours >= 18) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Time',
+        description: 'Match time must be between 8:00 AM and 6:00 PM.',
+      });
+      setIsSubmittingEdit(false);
+      return;
+    }
+
 
     const newEndTime = new Date(newStartTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
+
+    // Conflict checking
+    const conflict = event.matches.find(m => {
+        if (m.matchId === selectedMatch.matchId) return false; // Don't check against itself
+        if (m.venueId !== editVenue) return false; // Not in the same venue
+
+        const existingStart = new Date(m.startTime).getTime();
+        const existingEnd = new Date(m.endTime).getTime();
+        const newStart = newStartTime.getTime();
+        const newEnd = newEndTime.getTime();
+
+        // Check for overlap
+        return (newStart < existingEnd && newEnd > existingStart);
+    });
+
+    if (conflict) {
+        toast({
+            variant: 'destructive',
+            title: 'Scheduling Conflict',
+            description: `This time slot at ${getVenueName(editVenue)} is already booked. Please choose a different time or venue.`,
+        });
+        setIsSubmittingEdit(false);
+        return;
+    }
+
 
     const updatedMatches = event.matches.map(m => {
       if (m.matchId === selectedMatch.matchId) {
@@ -130,7 +155,7 @@ export default function SchedulePage() {
           venueId: editVenue,
           startTime: newStartTime.toISOString(),
           endTime: newEndTime.toISOString(),
-          status: 'scheduled' as const, // Ensure status is set
+          status: 'scheduled' as const,
         };
       }
       return m;
