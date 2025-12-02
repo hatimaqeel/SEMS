@@ -26,8 +26,8 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
-import { collection, doc, setDoc } from 'firebase/firestore';
-import type { Department } from '@/lib/types';
+import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import type { Department, AppSettings } from '@/lib/types';
 import { MailCheck } from 'lucide-react';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -56,29 +56,43 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     if (password !== confirmPassword) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Passwords do not match.',
       });
+      setLoading(false);
       return;
     }
     
     const role = isStudentTab ? 'student' : 'admin';
     if (role === 'admin') {
-      const ADMIN_SECRET_KEY = 'unisport@cust2025';
-      if (secretKey !== ADMIN_SECRET_KEY) {
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Invalid secret key.",
-          });
-          return;
+      try {
+        const settingsRef = doc(firestore, 'settings', 'app');
+        const settingsSnap = await getDoc(settingsRef);
+        if (!settingsSnap.exists() || settingsSnap.data()?.secretKey !== secretKey) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Invalid secret key.",
+            });
+            setLoading(false);
+            return;
+        }
+      } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Error validating key",
+            description: "Could not verify the secret key. Please try again.",
+        });
+        setLoading(false);
+        return;
       }
     }
 
-    setLoading(true);
     try {
       const userCredential = await initiateEmailSignUp(auth, email, password);
       const user = userCredential.user;

@@ -270,8 +270,10 @@ export default function UsersPage() {
     const userRole = role;
 
     if (userRole === 'admin') {
-        const ADMIN_SECRET_KEY = 'unisport@cust2025';
-        if (secretKey !== ADMIN_SECRET_KEY) {
+      try {
+        const settingsRef = doc(firestore, 'settings', 'app');
+        const settingsSnap = await getDoc(settingsRef);
+        if (!settingsSnap.exists() || settingsSnap.data()?.secretKey !== secretKey) {
             toast({
                 variant: "destructive",
                 title: "Error",
@@ -280,6 +282,15 @@ export default function UsersPage() {
             setIsSubmitting(false);
             return;
         }
+      } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Error validating key",
+            description: "Could not verify the secret key. Please try again.",
+        });
+        setIsSubmitting(false);
+        return;
+      }
     }
     
     const tempApp = initializeApp(firebaseConfig, `temp-app-${new Date().getTime()}`);
