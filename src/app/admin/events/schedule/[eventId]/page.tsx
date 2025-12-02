@@ -355,7 +355,9 @@ export default function SchedulePage() {
     if (a.round !== b.round) {
       return a.round - b.round;
     }
-    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
+    const bTime = b.startTime ? new Date(b.startTime).getTime() : 0;
+    return aTime - bTime;
   });
   
   const approvedTeams = event.teams.filter(team => team.status === 'approved');
@@ -511,5 +513,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    

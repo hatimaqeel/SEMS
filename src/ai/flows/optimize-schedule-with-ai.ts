@@ -71,6 +71,7 @@ const prompt = ai.definePrompt({
   5.  **Match Duration:** Use the default duration for the given sport to calculate the end time for each match.
   6.  **Team Preferences:** Prioritize assigning teams to their preferred venues, but avoiding conflicts (Rule #1) and respecting rest days (Rule #2) is more important.
   7.  **Efficiency:** Create the most compact and efficient schedule possible while following all the above rules.
+  8.  **Schedule ALL Matches**: You must provide a venue, startTime, and endTime for every single match provided in the input, including matches where the teams are "TBD".
 
   Given the following information about an event, optimize the match schedule.
   Provide a reasoning for the schedule optimization and return the optimized match schedule.
