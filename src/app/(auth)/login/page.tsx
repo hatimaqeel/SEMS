@@ -18,7 +18,7 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
 
@@ -53,15 +53,39 @@ export default function LoginPage() {
         let userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-          const newUser: Omit<User, 'id'> = {
-            userId: user.uid,
+          // Check for a pending profile
+          const pendingProfileRef = doc(firestore, 'userProfiles', user.uid);
+          const pendingProfileSnap = await getDoc(pendingProfileRef);
+
+          let userDataFromProfile: Omit<User, 'id' | 'userId' | 'email' | 'emailVerified'> = {
             displayName: user.displayName || user.email || 'New User',
-            email: user.email!,
             role: 'student', // Default role for self-signup
             dept: 'Unassigned',
             status: 'active',
-            emailVerified: true,
           };
+          
+          if(pendingProfileSnap.exists()) {
+            const pendingData = pendingProfileSnap.data();
+             userDataFromProfile = {
+                displayName: pendingData.displayName,
+                role: pendingData.role,
+                dept: pendingData.dept,
+                status: 'active',
+                registrationNumber: pendingData.registrationNumber,
+                gender: pendingData.gender,
+             }
+             // Delete the pending profile
+             await deleteDoc(pendingProfileRef);
+          }
+
+
+          const newUser: Omit<User, 'id'> = {
+            userId: user.uid,
+            email: user.email!,
+            emailVerified: true,
+            ...userDataFromProfile,
+          };
+
           await setDoc(userDocRef, newUser);
           userDoc = await getDoc(userDocRef); // Re-fetch the document
           toast({
@@ -171,5 +195,3 @@ export default function LoginPage() {
     </Card>
   );
 }
-
-    

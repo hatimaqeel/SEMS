@@ -29,6 +29,7 @@ import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import type { Department } from '@/lib/types';
 import { MailCheck } from 'lucide-react';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -64,7 +65,8 @@ export default function SignupPage() {
       return;
     }
     
-    if (!isStudentTab) { // Admin tab
+    const role = isStudentTab ? 'student' : 'admin';
+    if (role === 'admin') {
       const ADMIN_SECRET_KEY = 'unisport@cust2025';
       if (secretKey !== ADMIN_SECRET_KEY) {
           toast({
@@ -78,8 +80,22 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await initiateEmailSignUp(auth, email, password);
-      // Don't create the user doc here. It will be created on first verified login.
+      const userCredential = await initiateEmailSignUp(auth, email, password);
+      const user = userCredential.user;
+
+      // Store the profile details in userProfiles collection
+      const profileData = {
+        displayName: name,
+        email: email,
+        role: role,
+        dept: department,
+        registrationNumber: regNumber,
+        gender: gender,
+      };
+
+      const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+      setDocumentNonBlocking(userProfileRef, profileData, {});
+      
       setSignupComplete(true);
     } catch(error: any) {
          toast({
@@ -221,5 +237,3 @@ export default function SignupPage() {
     </Card>
   );
 }
-
-    

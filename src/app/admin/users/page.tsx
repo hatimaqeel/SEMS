@@ -65,6 +65,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp } from 'firebase/app';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const UserTable = ({ 
     users, 
@@ -266,7 +267,9 @@ export default function UsersPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    if (role === 'admin') {
+    const userRole = role;
+
+    if (userRole === 'admin') {
         const ADMIN_SECRET_KEY = 'unisport@cust2025';
         if (secretKey !== ADMIN_SECRET_KEY) {
             toast({
@@ -286,9 +289,20 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
 
-        // Don't create a user doc here. Just send verification.
+        // Store profile details in a temporary collection
+        const profileData = {
+          displayName: name,
+          email: email,
+          role: userRole,
+          dept: department,
+          registrationNumber: regNumber,
+          gender: gender,
+        };
+
+        const userProfileRef = doc(firestore, 'userProfiles', newUser.uid);
+        setDocumentNonBlocking(userProfileRef, profileData, {});
+
         await sendEmailVerification(newUser);
-        
         await signOut(tempAuth);
         
         toast({
@@ -640,5 +654,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

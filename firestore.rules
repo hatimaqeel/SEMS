@@ -11,6 +11,7 @@
  * - /events/{eventId}/teams/{teamId}: Data about teams participating in events.
  * - /events/{eventId}/matches/{matchId}: Data about matches scheduled for events.
  * - /users/{userId}: Private user profile data.
+ * - /userProfiles/{userId}: Temporary profile data for new users.
  * - /events/{eventId}/logs/{logId}: Log entries for events.
  * - /brackets/{eventId}: Tournament bracket data for an event.
  *
@@ -29,6 +30,7 @@
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
  * - Users: Owner-only access for read/write. Admin can perform any action on any user.
+ * - UserProfiles: Admin can create. Owner can read and delete.
  * - Logs: Event-scoped access.
  */
 rules_version = '2';
@@ -152,6 +154,19 @@ service cloud.firestore {
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
+    
+    /**
+     * @description Manages temporary user profiles.
+     * @path /userProfiles/{userId}
+     * @allow create: Any authenticated user can create their own temporary profile.
+     * @allow get, delete: Owner can read and delete their own temporary profile.
+     * @allow list, update: Denied for all.
+     */
+    match /userProfiles/{userId} {
+      allow create: if isSignedIn();
+      allow get, delete: if isOwner(userId);
+      allow list, update: if false;
+    }
 
     /**
      * @description Grants read and write access to a log entry only if the user is the owner.
@@ -197,5 +212,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
