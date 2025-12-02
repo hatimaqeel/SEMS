@@ -179,22 +179,92 @@ export default function SchedulePage() {
       }
     }
     
-    const teamPairs = event.settings.format === 'knockout'
-      ? generateKnockoutPairs(approvedTeams)
-      : generateRoundRobinPairs(approvedTeams);
+    // --- START OF MODIFIED LOGIC ---
 
-    if(teamPairs.length === 0) {
+    let allMatchesToSchedule: Omit<Match, 'venueId' | 'startTime' | 'endTime' | 'status'>[] = [];
+    const bracketRef = doc(firestore, 'brackets', eventId);
+    const newBracket: Bracket = { id: eventId, rounds: [] };
+
+    if (event.settings.format === 'round-robin') {
+        const pairs = generateRoundRobinPairs(approvedTeams);
+        allMatchesToSchedule = pairs.map((pair, index) => ({
+            matchId: `m${Date.now() + index}`,
+            ...pair,
+            sportType: event.sportType,
+            round: 1,
+        }));
+        newBracket.rounds.push({
+            roundIndex: 1,
+            roundName: 'Round Robin',
+            matches: allMatchesToSchedule.map(m => m.matchId)
+        });
+
+    } else { // Knockout format
+        let currentRoundTeams = [...approvedTeams];
+        let roundIndex = 1;
+        
+        while(currentRoundTeams.length > 1 || (newBracket.rounds.length > 0 && newBracket.rounds[newBracket.rounds.length - 1].matches.length > 1) ) {
+            
+            let pairs;
+            let roundName = `Round ${roundIndex}`;
+            
+            // For first round, generate from approved teams
+            if (roundIndex === 1) {
+                const shuffledTeams = currentRoundTeams.sort(() => 0.5 - Math.random());
+                pairs = [];
+                for (let i = 0; i < shuffledTeams.length; i += 2) {
+                    if (shuffledTeams[i + 1]) {
+                        pairs.push({ teamAId: shuffledTeams[i].teamId, teamBId: shuffledTeams[i + 1].teamId });
+                    } else {
+                        // Bye for the first round
+                        const byeWinnerId = shuffledTeams[i].teamId;
+                        const matchId = `m${Date.now() + allMatchesToSchedule.length}`;
+                        allMatchesToSchedule.push({ matchId, teamAId: byeWinnerId, teamBId: 'BYE', sportType: event.sportType, round: roundIndex, winnerTeamId: byeWinnerId });
+                    }
+                }
+            } else {
+                 const numPreviousMatches = newBracket.rounds[roundIndex-2].matches.length;
+                 const numCurrentRoundMatches = Math.floor(numPreviousMatches/2);
+                 if(numCurrentRoundMatches < 1) break;
+                 
+                 pairs = Array.from({length: numCurrentRoundMatches}, () => ({teamAId: 'TBD', teamBId: 'TBD'}));
+            }
+            
+            const numMatchesThisRound = pairs.length;
+            if(numMatchesThisRound === 1 && roundIndex > 1) roundName = "Final";
+            else if (numMatchesThisRound <= 2 && roundIndex > 1) roundName = "Semifinals";
+            else if (numMatchesThisRound <= 4 && roundIndex > 1) roundName = "Quarterfinals";
+
+            const roundMatches = pairs.map((pair) => ({
+                matchId: `m${Date.now() + allMatchesToSchedule.length}`,
+                ...pair,
+                sportType: event.sportType,
+                round: roundIndex,
+            }));
+
+            newBracket.rounds.push({
+                roundIndex: roundIndex,
+                roundName: roundName,
+                matches: roundMatches.map(m => m.matchId)
+            });
+            
+            allMatchesToSchedule.push(...roundMatches);
+            
+            // Prep for next round
+            const nextRoundTeamCount = Math.ceil(currentRoundTeams.length / 2);
+            currentRoundTeams = Array(nextRoundTeamCount).fill(null).map(() => ({teamId: 'TBD'} as Team));
+            roundIndex++;
+
+            if(roundIndex > 10) break; // safety break
+        }
+    }
+    
+    if(allMatchesToSchedule.length === 0) {
         setGenerationError('Could not generate any match pairs. Check your teams.');
         setIsGenerating(false);
         return;
     }
-
-    const matchesToSchedule = teamPairs.map((pair, index) => ({
-        matchId: `m${Date.now() + index}`,
-        ...pair,
-        sportType: event.sportType,
-    }));
-
+    
     try {
         const venueAvailability = venues.reduce((acc, venue) => {
             const availability = [];
@@ -221,100 +291,41 @@ export default function SchedulePage() {
             return acc;
         }, {} as Record<string, {defaultDurationMinutes: number}>);
 
+      const aiInputMatches = allMatchesToSchedule.map(m => ({
+          matchId: m.matchId,
+          teamAId: m.teamAId,
+          teamBId: m.teamBId,
+          sportType: m.sportType,
+      }));
 
-      const aiMatchesToSchedule = matchesToSchedule.filter(m => m.teamAId !== 'TBD' && m.teamBId !== 'TBD');
-      const byes = matchesToSchedule.filter(m => m.teamAId === 'TBD' || m.teamBId === 'TBD');
-
-      let optimizedMatches: any[] = [];
-      if (aiMatchesToSchedule.length > 0) {
-        const result = await optimizeScheduleWithAI({
-            eventId: event.eventId,
-            venueAvailability,
-            teamPreferences,
-            timeConstraints: { 
-                earliestStartTime: new Date(new Date(event.startDate).setHours(8,0,0,0)).toISOString(),
-                latestEndTime: new Date(new Date(event.startDate).setHours(18,0,0,0)).toISOString(),
-            },
-            matches: aiMatchesToSchedule,
-            sports: sportsData,
-        });
-        optimizedMatches = result.optimizedMatches;
-      }
+      const result = await optimizeScheduleWithAI({
+          eventId: event.eventId,
+          venueAvailability,
+          teamPreferences,
+          timeConstraints: { 
+              earliestStartTime: new Date(new Date(event.startDate).setHours(8,0,0,0)).toISOString(),
+              latestEndTime: new Date(new Date(event.startDate).setHours(18,0,0,0)).toISOString(),
+          },
+          matches: aiInputMatches.filter(m => m.teamBId !== 'BYE'), // Don't schedule byes
+          sports: sportsData,
+      });
+      const { optimizedMatches } = result;
       
-      let allMatches: Match[] = matchesToSchedule.map(matchToSchedule => {
+      const finalMatches: Match[] = allMatchesToSchedule.map(matchToSchedule => {
           const optimized = optimizedMatches.find(opt => opt.matchId === matchToSchedule.matchId);
-          const isBye = matchToSchedule.teamAId === 'TBD' || matchToSchedule.teamBId === 'TBD';
-          const winnerId = isBye ? (matchToSchedule.teamAId !== 'TBD' ? matchToSchedule.teamAId : matchToSchedule.teamBId) : '';
+          const isBye = matchToSchedule.teamBId === 'BYE';
           
           return {
               ...matchToSchedule,
               venueId: optimized?.venueId || '',
               startTime: optimized?.startTime || '',
               endTime: optimized?.endTime || '',
-              round: 1,
               status: isBye ? 'completed' : 'scheduled',
-              winnerTeamId: winnerId,
+              winnerTeamId: isBye ? matchToSchedule.teamAId : (matchToSchedule.winnerTeamId || ''),
           };
       });
 
-      const bracketRef = doc(firestore, 'brackets', eventId);
-      
-      const newBracket: Bracket = {
-        id: eventId,
-        rounds: [{
-          roundIndex: 1,
-          roundName: `Round 1`,
-          matches: allMatches.map(m => m.matchId)
-        }]
-      };
-      
-      if (event.settings.format === 'knockout') {
-        let numMatchesInRound = allMatches.filter(m => m.status === 'completed' || m.status === 'scheduled').length;
-        let roundIndex = 1;
-        
-        while (numMatchesInRound > 1) {
-            roundIndex++;
-            const numNextRoundMatches = Math.floor(numMatchesInRound / 2);
-            if (numNextRoundMatches === 0) break;
-
-            let roundName;
-            if (numNextRoundMatches === 1) roundName = "Final";
-            else if (numNextRoundMatches <= 2) roundName = "Semifinals";
-            else if (numNextRoundMatches <= 4) roundName = "Quarterfinals";
-            else roundName = `Round ${roundIndex}`;
-            
-            const nextRoundMatches: Match[] = [];
-            const nextRoundMatchIds: string[] = [];
-
-            for (let i = 0; i < numNextRoundMatches; i++) {
-                const matchId = `m${Date.now() + roundIndex * 100 + i}`;
-                nextRoundMatchIds.push(matchId);
-                nextRoundMatches.push({
-                    matchId: matchId,
-                    teamAId: 'TBD',
-                    teamBId: 'TBD',
-                    sportType: event.sportType,
-                    venueId: '',
-                    startTime: '',
-                    endTime: '',
-                    round: roundIndex,
-                    status: 'scheduled',
-                    winnerTeamId: '',
-                });
-            }
-            
-            allMatches.push(...nextRoundMatches);
-            newBracket.rounds.push({
-                roundIndex,
-                roundName,
-                matches: nextRoundMatchIds
-            });
-            
-            numMatchesInRound = numNextRoundMatches;
-        }
-      }
-
-      await updateDoc(eventRef, { matches: allMatches, status: 'ongoing' });
+      await updateDoc(eventRef, { matches: finalMatches, status: 'ongoing' });
       setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
 
       toast({
@@ -339,7 +350,13 @@ export default function SchedulePage() {
     return <div className="text-center p-8">Event not found.</div>;
   }
   
-  const sortedMatches = event.matches?.slice().sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const sortedMatches = event.matches?.slice().sort((a, b) => {
+    if (a.round !== b.round) {
+      return a.round - b.round;
+    }
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  });
+  
   const approvedTeams = event.teams.filter(team => team.status === 'approved');
 
   return (
@@ -493,3 +510,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
