@@ -71,19 +71,6 @@ interface EventFormProps {
   isSubmitting: boolean;
 }
 
-const generateTimeSlots = () => {
-    const slots = [];
-    for (let h = 8; h < 18; h++) {
-        for (let m = 0; m < 60; m += 60) {
-            if (h === 18 && m > 0) continue;
-            const hour = h.toString().padStart(2, '0');
-            const minute = m.toString().padStart(2, '0');
-            slots.push(`${hour}:${minute}`);
-        }
-    }
-    return slots;
-};
-
 export function EventForm({
   sports,
   venues,
@@ -116,7 +103,6 @@ export function EventForm({
         },
   });
 
-  const timeSlots = generateTimeSlots();
   const today = new Date();
   const maxSchedulingDate = useMemo(() => addMonths(today, schedulingWindowMonths), [schedulingWindowMonths]);
 
@@ -241,20 +227,9 @@ export function EventForm({
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Time</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a start time" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {timeSlots.map(time => (
-                                    <SelectItem key={time} value={time}>
-                                        {new Date(`1970-01-01T${time}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'UTC' })}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <FormControl>
+                           <Input type="time" {...field} />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
