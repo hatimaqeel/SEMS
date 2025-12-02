@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -26,10 +27,13 @@ export default function SettingsPage() {
 
     useEffect(() => {
         if (settings) {
-            setSecretKey(settings.secretKey || '');
+            setSecretKey(settings.secretKey || 'unisport@cust2025');
             setSchedulingWindow((settings.eventSchedulingWindowMonths || 12).toString());
+        } else if (!isLoading) {
+            // If settings are not loading and don't exist, set the default
+            setSecretKey('unisport@cust2025');
         }
-    }, [settings]);
+    }, [settings, isLoading]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
