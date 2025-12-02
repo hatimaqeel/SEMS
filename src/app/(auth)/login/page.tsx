@@ -19,6 +19,7 @@ import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { doc, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import type { User } from '@/lib/types';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -32,49 +33,74 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-       // Check if email is verified
-      if (!user.emailVerified) {
-        toast({
-          variant: 'destructive',
-          title: 'Email Not Verified',
-          description: 'Please check your inbox and verify your email address before logging in.',
-        });
-        signOut(auth); // Sign out the user
-        setLoading(false);
-        return;
-      }
-      
-      const checkUserRole = async () => {
+      const checkUserStatusAndRedirect = async () => {
         setLoading(true);
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.role === 'admin') {
-            router.push('/admin/dashboard');
-          } else {
-            router.push('/dashboard');
-          }
+
+        // 1. Check for email verification
+        if (!user.emailVerified) {
+          toast({
+            variant: 'destructive',
+            title: 'Email Not Verified',
+            description:
+              'Please check your inbox and verify your email address before logging in.',
+          });
+          signOut(auth);
+          setLoading(false);
+          return;
+        }
+
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        // 2. Handle deleted user (Firestore doc does not exist)
+        if (!userDoc.exists()) {
+            toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: 'No account found with this email.',
+            });
+            signOut(auth);
+            setLoading(false);
+            return;
+        }
+
+        const userData = userDoc.data() as User;
+
+        // 3. Handle deactivated user
+        if (userData.status === 'deactivated') {
+            toast({
+                variant: 'destructive',
+                title: 'Account Deactivated',
+                description: 'Your account has been deactivated by the Administration. Please contact the support team for further details.',
+            });
+            signOut(auth);
+            setLoading(false);
+            return;
+        }
+
+        // 4. Redirect based on role
+        if (userData.role === 'admin') {
+          router.push('/admin/dashboard');
         } else {
-          // Default redirect if user doc doesn't exist
           router.push('/dashboard');
         }
-        setLoading(false);
+        // No setLoading(false) here because the router push will unmount the component
       };
-      checkUserRole();
+
+      checkUserStatusAndRedirect();
     }
   }, [user, isUserLoading, router, firestore, auth, toast]);
-  
+
   useEffect(() => {
     if (userError) {
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: userError.message || 'An unexpected error occurred.',
-        });
-        setLoading(false);
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: 'Invalid email or password. Please try again.',
+      });
+      setLoading(false);
     }
   }, [userError, toast]);
-
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
