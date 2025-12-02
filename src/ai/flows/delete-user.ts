@@ -7,8 +7,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import * as admin from 'firebase-admin';
-import { firebaseConfig } from '@/firebase/config';
+import admin from '@/firebase/admin';
 
 const DeleteUserInputSchema = z.object({
   uid: z.string().describe('The UID of the user to delete.'),
@@ -20,15 +19,6 @@ const DeleteUserOutputSchema = z.object({
   message: z.string(),
 });
 export type DeleteUserOutput = z.infer<typeof DeleteUserOutputSchema>;
-
-// Initialize Firebase Admin SDK only if it hasn't been initialized yet.
-if (!admin.apps.length) {
-  admin.initializeApp({
-    // Use service account credentials from environment variables
-    credential: admin.credential.applicationDefault(),
-    projectId: firebaseConfig.projectId,
-  });
-}
 
 export async function deleteUser(
   input: DeleteUserInput
