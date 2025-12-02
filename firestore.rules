@@ -28,7 +28,7 @@
  * - Brackets: Public read, admin write.
  * - Teams: Event-scoped access.
  * - Matches: Event-scoped access.
- * - Users: Owner-only access for read/write. Admin can list all users.
+ * - Users: Owner-only access for read/write. Admin can perform any action on any user.
  * - Logs: Event-scoped access.
  */
 rules_version = '2';
@@ -136,19 +136,21 @@ service cloud.firestore {
     }
 
     /**
-     * @description Grants owner-only access to user profile data.
+     * @description Grants owner-only access to user profile data, and full access for admins.
      * @path /users/{userId}
-     * @allow (read): User can read their own profile.
-     * @allow (create): A newly signed up user can create their own profile.
-     * @allow (update, delete): User can update/delete their own profile if it exists.
+     * @allow (get): User can read their own profile, or an admin can read any profile.
      * @allow (list): Admins can list all users.
-     * @principle Enforces document ownership and admin read.
+     * @allow (create): A new user can create their own profile, or an admin can create any profile.
+     * @allow (update): User can update their own profile, or an admin can update any profile.
+     * @allow (delete): An admin can delete any user profile.
+     * @principle Enforces document ownership and admin full access.
      */
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update, delete: if isExistingOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
