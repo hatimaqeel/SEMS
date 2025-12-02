@@ -7,6 +7,12 @@
       "imageHint": "stadium sports"
     },
     {
+      "id": "university",
+      "description": "A picture of the university campus.",
+      "imageUrl": "https://storage.googleapis.com/project-1-4529446714-2e912b7a/public/a41bf97e82b71946808779199d799049.png",
+      "imageHint": "university campus"
+    },
+    {
       "id": "cricket",
       "description": "Action shot of a cricket match.",
       "imageUrl": "https://images.unsplash.com/photo-1599982917650-21da4d09c437?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmlja2V0JTIwc3BvcnR8ZW58MHx8fHwxNzYyMDIxNjI0fDA&ixlib=rb-4.1.0&q=80&w=1080",
