@@ -6,8 +6,9 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   collection,
   doc,
-  getDoc,
   setDoc,
+  updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import type { User, Department } from '@/lib/types';
@@ -29,9 +30,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { MoreHorizontal, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit, Trash, UserCog, UserCheck, UserX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
@@ -40,6 +41,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -52,14 +63,32 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
-const UserTable = ({ users, isLoading, roleVariant }: { users: User[] | undefined, isLoading: boolean, roleVariant: (role: string) => "default" | "secondary" | "outline" | "destructive" | null | undefined }) => (
+const UserTable = ({ 
+    users, 
+    isLoading, 
+    roleVariant, 
+    onEdit, 
+    onChangeRole, 
+    onDeactivate,
+    onActivate,
+    onDelete 
+}: { 
+    users: User[] | undefined, 
+    isLoading: boolean, 
+    roleVariant: (role: string) => "default" | "secondary" | "outline" | "destructive" | null | undefined,
+    onEdit: (user: User) => void,
+    onChangeRole: (user: User) => void,
+    onDeactivate: (user: User) => void,
+    onActivate: (user: User) => void,
+    onDelete: (user: User) => void,
+}) => (
     <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Display Name</TableHead>
         <TableHead>Department</TableHead>
         <TableHead>Role</TableHead>
-        <TableHead>Email</TableHead>
+        <TableHead>Status</TableHead>
         <TableHead>
           <span className="sr-only">Actions</span>
         </TableHead>
@@ -92,7 +121,7 @@ const UserTable = ({ users, isLoading, roleVariant }: { users: User[] | undefine
                 <div className="grid gap-0.5">
                   <span className="font-medium">{user.displayName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {user.registrationNumber}
+                    {user.email}
                   </span>
                 </div>
               </div>
@@ -101,8 +130,10 @@ const UserTable = ({ users, isLoading, roleVariant }: { users: User[] | undefine
             <TableCell>
               <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
             </TableCell>
-            <TableCell>{user.email}</TableCell>
-            <TableCell>
+             <TableCell>
+                <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
+            </TableCell>
+            <TableCell className="text-right">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-8 p-0">
@@ -112,11 +143,29 @@ const UserTable = ({ users, isLoading, roleVariant }: { users: User[] | undefine
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem>Edit User</DropdownMenuItem>
-                  <DropdownMenuItem>Change Role</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(user)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit User
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onChangeRole(user)}>
+                    <UserCog className="mr-2 h-4 w-4" />
+                    Change Role
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">
-                    Deactivate User
+                  {user.status === 'deactivated' ? (
+                     <DropdownMenuItem onClick={() => onActivate(user)}>
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        Activate User
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => onDeactivate(user)}>
+                        <UserX className="mr-2 h-4 w-4" />
+                        Deactivate User
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem className="text-destructive" onClick={() => onDelete(user)}>
+                     <Trash className="mr-2 h-4 w-4" />
+                    Delete User
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -140,6 +189,13 @@ export default function UsersPage() {
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  // Dialog states
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
 
   // Form state
   const [role, setRole] = useState<'student' | 'admin'>('student');
@@ -150,6 +206,13 @@ export default function UsersPage() {
   const [regNumber, setRegNumber] = useState('');
   const [gender, setGender] = useState('');
   const [secretKey, setSecretKey] = useState('');
+  
+  // Edit state
+  const [editName, setEditName] = useState('');
+  const [editDept, setEditDept] = useState('');
+  const [editReg, setEditReg] = useState('');
+  const [editRole, setEditRole] = useState<User['role']>('student');
+
 
   const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users, isLoading } = useCollection<User>(usersRef);
@@ -193,8 +256,6 @@ export default function UsersPage() {
         }
     }
     
-    // We need a temporary auth instance to create a user
-    // This doesn't sign the admin out.
     const tempAuth = getAuth();
 
     try {
@@ -209,6 +270,7 @@ export default function UsersPage() {
             email: email,
             role: role,
             dept: department,
+            status: 'active'
         };
 
         if (role === 'student') {
@@ -237,6 +299,99 @@ export default function UsersPage() {
         setIsSubmitting(false);
     }
   };
+
+  const handleEditUserClick = (user: User) => {
+    setSelectedUser(user);
+    setEditName(user.displayName);
+    setEditDept(user.dept);
+    setEditReg(user.registrationNumber || '');
+    setIsEditUserOpen(true);
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setIsSubmitting(true);
+
+    const userDocRef = doc(firestore, 'users', selectedUser.userId);
+    try {
+      await updateDoc(userDocRef, {
+        displayName: editName,
+        dept: editDept,
+        registrationNumber: editReg,
+      });
+      toast({ title: 'User Updated', description: `${editName}'s profile has been updated.` });
+      setIsEditUserOpen(false);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChangeRoleClick = (user: User) => {
+    setSelectedUser(user);
+    setEditRole(user.role);
+    setIsChangeRoleOpen(true);
+  };
+  
+  const handleChangeRoleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setIsSubmitting(true);
+
+    const userDocRef = doc(firestore, 'users', selectedUser.userId);
+    try {
+        await updateDoc(userDocRef, { role: editRole });
+        toast({ title: 'Role Updated', description: `${selectedUser.displayName}'s role has been changed to ${editRole}.`});
+        setIsChangeRoleOpen(false);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleDeactivateClick = async (user: User) => {
+    const userDocRef = doc(firestore, 'users', user.userId);
+    try {
+        await updateDoc(userDocRef, { status: 'deactivated' });
+        toast({ title: 'User Deactivated', description: `${user.displayName} has been deactivated.`});
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Action Failed', description: error.message });
+    }
+  };
+  
+  const handleActivateClick = async (user: User) => {
+      const userDocRef = doc(firestore, 'users', user.userId);
+      try {
+        await updateDoc(userDocRef, { status: 'active' });
+        toast({ title: 'User Activated', description: `${user.displayName} has been activated.`});
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Action Failed', description: error.message });
+    }
+  };
+
+  const handleDeleteClick = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteConfirmOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!selectedUser) return;
+    const userDocRef = doc(firestore, 'users', selectedUser.userId);
+    try {
+        // Note: Deleting the Firebase Auth user should be done in a backend function for security.
+        // This only deletes the Firestore record.
+        await deleteDoc(userDocRef);
+        toast({ title: 'User Deleted', description: `${selectedUser.displayName} has been permanently deleted.`});
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Delete Failed', description: error.message });
+    } finally {
+        setIsDeleteConfirmOpen(false);
+    }
+  };
+
 
   const roleVariant = (role: string) => {
     switch (role) {
@@ -273,15 +428,34 @@ export default function UsersPage() {
                 </TabsList>
             </div>
             <TabsContent value="students" className="mt-0">
-              <UserTable users={students} isLoading={isLoading} roleVariant={roleVariant} />
+              <UserTable 
+                users={students} 
+                isLoading={isLoading} 
+                roleVariant={roleVariant}
+                onEdit={handleEditUserClick}
+                onChangeRole={handleChangeRoleClick}
+                onActivate={handleActivateClick}
+                onDeactivate={handleDeactivateClick}
+                onDelete={handleDeleteClick}
+                />
             </TabsContent>
             <TabsContent value="administrators" className="mt-0">
-               <UserTable users={admins} isLoading={isLoading} roleVariant={roleVariant} />
+               <UserTable 
+                users={admins} 
+                isLoading={isLoading} 
+                roleVariant={roleVariant} 
+                onEdit={handleEditUserClick}
+                onChangeRole={handleChangeRoleClick}
+                onActivate={handleActivateClick}
+                onDeactivate={handleDeactivateClick}
+                onDelete={handleDeleteClick}
+                />
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
       
+      {/* Add New User Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -371,11 +545,81 @@ export default function UsersPage() {
           </Tabs>
         </DialogContent>
       </Dialog>
+      
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update the details for {selectedUser?.displayName}.</DialogDescription>
+          </DialogHeader>
+           <form onSubmit={handleEditUserSubmit} className="grid gap-4 py-4">
+            <div className="grid gap-2">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input id="edit-name" value={editName} onChange={e => setEditName(e.target.value)} required disabled={isSubmitting}/>
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="edit-dept">Department</Label>
+                <Select onValueChange={setEditDept} value={editDept} required disabled={isSubmitting || isLoadingDepts}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                        {departments?.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
+            {selectedUser?.role === 'student' && (
+                <div className="grid gap-2">
+                    <Label htmlFor="edit-reg">Registration Number</Label>
+                    <Input id="edit-reg" value={editReg} onChange={e => setEditReg(e.target.value)} disabled={isSubmitting}/>
+                </div>
+            )}
+             <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Role Dialog */}
+      <Dialog open={isChangeRoleOpen} onOpenChange={setIsChangeRoleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>Select a new role for {selectedUser?.displayName}.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangeRoleSubmit} className="grid gap-4 py-4">
+            <div className="grid gap-2">
+                <Label htmlFor="edit-role">Role</Label>
+                <Select onValueChange={(v) => setEditRole(v as User['role'])} value={editRole} required disabled={isSubmitting}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="student">Student</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="coordinator">Coordinator</SelectItem>
+                        <SelectItem value="referee">Referee</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user account for 
+              <span className="font-bold"> &quot;{selectedUser?.displayName}&quot;</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
-
-    
 }
-
-    

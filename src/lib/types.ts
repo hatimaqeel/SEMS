@@ -85,6 +85,7 @@ export type User = {
   role: 'admin' | 'coordinator' | 'referee' | 'student';
   dept: string;
   email: string;
+  status?: 'active' | 'deactivated';
   registrationNumber?: string;
   gender?: 'male' | 'female' | 'other';
   photoURL?: string;
