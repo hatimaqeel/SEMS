@@ -196,6 +196,7 @@ export default function UsersPage() {
   const { toast } = useToast();
   const { user: currentUser, isUserLoading } = useUser();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -231,6 +232,7 @@ export default function UsersPage() {
           setIsAdmin(true);
         }
       }
+      setIsCheckingAdmin(false);
     };
     if (!isUserLoading) {
       checkAdmin();
@@ -239,9 +241,9 @@ export default function UsersPage() {
 
   const usersRef = useMemoFirebase(() => {
     // Only fetch users if the current user is an admin
-    if (!isAdmin) return null;
+    if (isCheckingAdmin || !isAdmin) return null;
     return collection(firestore, 'users');
-  }, [firestore, isAdmin]);
+  }, [firestore, isAdmin, isCheckingAdmin]);
   const { data: users, isLoading } = useCollection<User>(usersRef);
   
   const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
@@ -473,7 +475,7 @@ export default function UsersPage() {
             <TabsContent value="students" className="mt-0">
               <UserTable 
                 users={students} 
-                isLoading={isLoading || isUserLoading} 
+                isLoading={isLoading || isUserLoading || isCheckingAdmin} 
                 roleVariant={roleVariant}
                 onEdit={handleEditUserClick}
                 onChangeRole={handleChangeRoleClick}
@@ -485,7 +487,7 @@ export default function UsersPage() {
             <TabsContent value="administrators" className="mt-0">
                <UserTable 
                 users={admins} 
-                isLoading={isLoading || isUserLoading} 
+                isLoading={isLoading || isUserLoading || isCheckingAdmin} 
                 roleVariant={roleVariant} 
                 onEdit={handleEditUserClick}
                 onChangeRole={handleChangeRoleClick}
