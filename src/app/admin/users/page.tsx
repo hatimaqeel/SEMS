@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { MoreHorizontal, PlusCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -51,6 +51,89 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+
+const UserTable = ({ users, isLoading, roleVariant }: { users: User[] | undefined, isLoading: boolean, roleVariant: (role: string) => "default" | "secondary" | "outline" | "destructive" | null | undefined }) => (
+    <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Display Name</TableHead>
+        <TableHead>Department</TableHead>
+        <TableHead>Role</TableHead>
+        <TableHead>Email</TableHead>
+        <TableHead>
+          <span className="sr-only">Actions</span>
+        </TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {isLoading && (
+        <TableRow>
+          <TableCell colSpan={5} className="text-center h-24">
+            Loading users...
+          </TableCell>
+        </TableRow>
+      )}
+      {users && users.length > 0 ? (
+        users.map((user) => (
+          <TableRow key={user.userId}>
+            <TableCell className="font-medium">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-8 w-8">
+                  {user.photoURL && (
+                    <AvatarImage
+                      src={user.photoURL}
+                      alt={user.displayName}
+                    />
+                  )}
+                  <AvatarFallback>
+                    {user.displayName.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="grid gap-0.5">
+                  <span className="font-medium">{user.displayName}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {user.registrationNumber}
+                  </span>
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>{user.dept}</TableCell>
+            <TableCell>
+              <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
+            </TableCell>
+            <TableCell>{user.email}</TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem>Edit User</DropdownMenuItem>
+                  <DropdownMenuItem>Change Role</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive">
+                    Deactivate User
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))
+      ) : !isLoading && (
+        <TableRow>
+            <TableCell colSpan={5} className="text-center h-24">
+                No users found.
+            </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  </Table>
+);
+
 
 export default function UsersPage() {
   const firestore = useFirestore();
@@ -74,6 +157,9 @@ export default function UsersPage() {
   const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
   const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
 
+  const students = users?.filter(user => user.role === 'student');
+  const admins = users?.filter(user => user.role === 'admin' || user.role === 'coordinator' || user.role === 'referee');
+
   const clearForm = () => {
     setName('');
     setEmail('');
@@ -95,27 +181,16 @@ export default function UsersPage() {
     setIsSubmitting(true);
     
     if (role === 'admin') {
-      try {
-        const settingsDocRef = doc(firestore, 'settings', 'app');
-        const settingsDoc = await getDoc(settingsDocRef);
-        if (!settingsDoc.exists() || settingsDoc.data().secretKey !== secretKey) {
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Invalid secret key for admin creation.",
-          });
-          setIsSubmitting(false);
-          return;
+        const ADMIN_SECRET_KEY = 'unisport@cust2025';
+        if (secretKey !== ADMIN_SECRET_KEY) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Invalid secret key.",
+            });
+            setIsSubmitting(false);
+            return;
         }
-      } catch (error) {
-         toast({
-            variant: "destructive",
-            title: "Error validating secret key",
-            description: "Could not validate secret key. Please try again.",
-          });
-        setIsSubmitting(false);
-        return;
-      }
     }
     
     // We need a temporary auth instance to create a user
@@ -190,78 +265,20 @@ export default function UsersPage() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Display Name</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
-                    Loading users...
-                  </TableCell>
-                </TableRow>
-              )}
-              {users &&
-                users.map((user) => (
-                  <TableRow key={user.userId}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          {user.photoURL && (
-                            <AvatarImage
-                              src={user.photoURL}
-                              alt={user.displayName}
-                            />
-                          )}
-                          <AvatarFallback>
-                            {user.displayName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="grid gap-0.5">
-                          <span className="font-medium">{user.displayName}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {user.registrationNumber}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{user.dept}</TableCell>
-                    <TableCell>
-                      <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit User</DropdownMenuItem>
-                          <DropdownMenuItem>Change Role</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
-                            Deactivate User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+          <Tabs defaultValue="students">
+            <div className="p-6">
+                <TabsList>
+                    <TabsTrigger value="students">Students</TabsTrigger>
+                    <TabsTrigger value="administrators">Administrators</TabsTrigger>
+                </TabsList>
+            </div>
+            <TabsContent value="students" className="mt-0">
+              <UserTable users={students} isLoading={isLoading} roleVariant={roleVariant} />
+            </TabsContent>
+            <TabsContent value="administrators" className="mt-0">
+               <UserTable users={admins} isLoading={isLoading} roleVariant={roleVariant} />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
       
@@ -357,5 +374,8 @@ export default function UsersPage() {
 
     </div>
   );
+
+    
+}
 
     
