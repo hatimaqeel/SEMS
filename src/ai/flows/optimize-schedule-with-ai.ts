@@ -70,6 +70,7 @@ CONSTRAINTS FOR MATCH SCHEDULING (STRICT):
 
 2.  **Mandatory Rest Days for Knockout Rounds**:
     *   For knockout tournaments, matches in a later round (e.g., Round 2) MUST be scheduled at least ONE FULL DAY after the last match of the preceding round (e.g., Round 1) has finished.
+    *   Any match where the teams are "TBD vs TBD" is considered a later round match and MUST follow this rest day rule.
     *   Example: If the last Round 1 match finishes on Monday, the first Round 2 match can start no earlier than Tuesday.
 
 3.  **Venue Time Buffer**:
