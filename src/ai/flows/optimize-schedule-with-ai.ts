@@ -25,6 +25,7 @@ const OptimizeScheduleWithAIInputSchema = z.object({
   }).describe('Overall time constraints for the event.'),
   matches: z.array(z.object({
     matchId: z.string().describe('The ID of the match.'),
+    round: z.number().describe('The round number of the match.'),
     teamAId: z.string().describe('The ID of team A.'),
     teamBId: z.string().describe('The ID of team B.'),
     sportType: z.string().describe('The type of sport.'),
@@ -63,11 +64,13 @@ const prompt = ai.definePrompt({
 
   Your primary task is to optimize the match schedule. You must strictly adhere to the following rules:
 
-  1.  **Venue Conflict Validation:** A venue can only host one match at a time. Do not schedule two matches in the same venue if their time slots overlap, regardless of the sport or event.
-  2.  **Time Constraints:** All matches must be scheduled within the overall earliest start time and latest end time. A hard rule is that no matches can be scheduled before 8:00 AM or after 6:00 PM (18:00) local time for the event date.
-  3.  **Match Duration:** Use the default duration for the given sport to calculate the end time for each match.
-  4.  **Team Preferences:** Prioritize assigning teams to their preferred venues where possible, but avoiding conflicts is more important.
-  5.  **Efficiency:** Create the most compact and efficient schedule possible.
+  1.  **No Conflicts:** A venue can only host one match at a time. Do not schedule two matches in the same venue if their time slots overlap. This is the most important rule.
+  2.  **Rest Days for Rounds:** Matches from different rounds must be scheduled on different days. Specifically, Round 2 matches must be scheduled at least one day after the last Round 1 match. Round 3 matches must be one day after the last Round 2 match, and so on. This gives teams time to rest.
+  3.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}). A hard rule is that no matches can be scheduled before 8:00 AM or after 6:00 PM (18:00) local time for any given day.
+  4.  **Buffer Time:** If you must schedule two matches in the same venue on the same day (for example, in a round-robin tournament), ensure there is at least a 2-hour gap between the end of one match and the start of the next.
+  5.  **Match Duration:** Use the default duration for the given sport to calculate the end time for each match.
+  6.  **Team Preferences:** Prioritize assigning teams to their preferred venues, but avoiding conflicts (Rule #1) and respecting rest days (Rule #2) is more important.
+  7.  **Efficiency:** Create the most compact and efficient schedule possible while following all the above rules.
 
   Given the following information about an event, optimize the match schedule.
   Provide a reasoning for the schedule optimization and return the optimized match schedule.
@@ -77,7 +80,7 @@ const prompt = ai.definePrompt({
   Venue Availability:
   {{#each venueAvailability}}
     Venue ID: {{@key}}
-    Availability: {{#each this}} Start Time: {{{startTime}}}, End Time: {{{endTime}}} {{/each}}
+    Availability: {{#each this}} Start: {{{startTime}}}, End: {{{endTime}}} {{/each}}
   {{/each}}
 
   Team Preferences:
@@ -86,24 +89,20 @@ const prompt = ai.definePrompt({
     Preferred Venues: {{#each this}} {{{this}}} {{/each}}
   {{/each}}
 
-  Time Constraints:
-  Earliest Start Time: {{{timeConstraints.earliestStartTime}}}
-  Latest End Time: {{{timeConstraints.latestEndTime}}}
-
-  Matches:
+  Matches to Schedule:
   {{#each matches}}
-    Match ID: {{{matchId}}}, Team A: {{{teamAId}}}, Team B: {{{teamBId}}}, Sport Type: {{{sportType}}}
+    - Match ID: {{{matchId}}}, Round: {{{round}}}, Teams: {{{teamAId}}} vs {{{teamBId}}}, Sport: {{{sportType}}}
   {{/each}}
 
-  Sports:
+  Sports Data:
   {{#each sports}}
-    Sport Type: {{@key}}, Default Duration (minutes): {{{defaultDurationMinutes}}}
+    Sport: {{@key}}, Duration: {{{defaultDurationMinutes}}} minutes
   {{/each}}
 
   Return the optimized schedule in the following JSON format:
   {{json optimizedMatches}}
 
-  Also, include a detailed reasoning for the schedule optimization in the reasoning field, explaining how you handled venue assignments and avoided conflicts.
+  Also, include a detailed reasoning for the schedule optimization in the reasoning field, explaining how you handled venue assignments, avoided conflicts, and managed round progression.
   `,
 });
 
