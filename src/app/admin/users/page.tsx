@@ -281,7 +281,6 @@ export default function UsersPage() {
         }
     }
     
-    // We use a temporary auth instance here to avoid conflicts with the main app's auth state
     const tempApp = initializeApp(firebaseConfig, `temp-app-${new Date().getTime()}`);
     const tempAuth = getAuth(tempApp);
 
@@ -289,35 +288,15 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
 
-        // Send verification email
         await sendEmailVerification(newUser);
-
-        const userDocRef = doc(firestore, 'users', newUser.uid);
         
-        let userData: Omit<User, 'id'> = {
-            userId: newUser.uid,
-            displayName: name,
-            email: email,
-            role: role,
-            dept: department,
-            status: 'active',
-            emailVerified: false, // Set to false initially
-        };
-
-        if (role === 'student') {
-            userData = {
-                ...userData,
-                registrationNumber: regNumber,
-                gender: gender as 'male' | 'female' | 'other',
-            };
-        }
-
-        await setDoc(userDocRef, userData);
+        // DO NOT create the user document here. It will be created on first verified login.
+        
         await signOut(tempAuth);
         
         toast({
-            title: 'User Created & Verification Sent',
-            description: `The ${role} account for ${name} has been created. A verification email has been sent.`,
+            title: 'Verification Sent',
+            description: `A verification email has been sent to ${email}. The user will appear in the list after they verify and log in.`,
         });
 
         setIsFormOpen(false);
@@ -666,5 +645,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

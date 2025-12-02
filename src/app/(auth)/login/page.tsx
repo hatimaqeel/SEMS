@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -36,7 +37,6 @@ export default function LoginPage() {
       const checkUserStatusAndRedirect = async () => {
         setLoading(true);
 
-        // 1. Check for email verification
         if (!user.emailVerified) {
           toast({
             variant: 'destructive',
@@ -52,23 +52,17 @@ export default function LoginPage() {
         const userDocRef = doc(firestore, 'users', user.uid);
         let userDoc = await getDoc(userDocRef);
 
-        // 2. Handle first-time verified login: create the user document
         if (!userDoc.exists()) {
-          // This is a minimal user record.
-          // In a real app, you might have a "complete profile" step
-          // or derive the role/dept from somewhere else.
-          // For now, we default to 'student'.
            const newUser: Omit<User, 'id'> = {
             userId: user.uid,
             displayName: user.displayName || user.email || 'New User',
             email: user.email!,
-            role: 'student',
+            role: 'student', 
             dept: 'Unassigned',
             status: 'active',
             emailVerified: true,
           };
           await setDoc(userDocRef, newUser);
-          // Re-fetch the doc after creating it
           userDoc = await getDoc(userDocRef);
            toast({
             title: 'Account Verified!',
@@ -78,13 +72,6 @@ export default function LoginPage() {
         
         const userData = userDoc.data() as User;
         
-        // Sync Firestore with Auth verification status if it was somehow missed
-        if (userData.emailVerified === false) {
-            await updateDoc(userDocRef, { emailVerified: true });
-        }
-
-
-        // 3. Handle deactivated user
         if (userData.status === 'deactivated') {
             toast({
                 variant: 'destructive',
@@ -96,7 +83,6 @@ export default function LoginPage() {
             return;
         }
 
-        // 4. Redirect based on role
         if (userData.role === 'admin') {
           router.push('/admin/dashboard');
         } else {
