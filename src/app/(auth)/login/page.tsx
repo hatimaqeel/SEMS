@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -31,6 +32,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
+       // Check if email is verified
+      if (!user.emailVerified) {
+        toast({
+          variant: 'destructive',
+          title: 'Email Not Verified',
+          description: 'Please check your inbox and verify your email address before logging in.',
+        });
+        signOut(auth); // Sign out the user
+        setLoading(false);
+        return;
+      }
+      
       const checkUserRole = async () => {
         setLoading(true);
         const userDoc = await getDoc(doc(firestore, 'users', user.uid));
@@ -49,7 +62,7 @@ export default function LoginPage() {
       };
       checkUserRole();
     }
-  }, [user, isUserLoading, router, firestore]);
+  }, [user, isUserLoading, router, firestore, auth, toast]);
   
   useEffect(() => {
     if (userError) {

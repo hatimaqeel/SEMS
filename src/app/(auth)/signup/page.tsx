@@ -28,6 +28,7 @@ import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { collection, doc, getDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { Department } from '@/lib/types';
+import { MailCheck } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -38,6 +39,8 @@ export default function SignupPage() {
 
   const [loading, setLoading] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState<'student' | 'admin' | null>(null);
+  const [signupComplete, setSignupComplete] = useState(false);
+
 
   // Student form state
   const [studentName, setStudentName] = useState('');
@@ -86,17 +89,14 @@ export default function SignupPage() {
         if (userData) {
             const userDocRef = doc(firestore, 'users', user.uid);
             setDocumentNonBlocking(userDocRef, userData, { merge: true });
-
-            toast({
-                title: 'Account Created',
-                description: `Your ${formSubmitted} account has been successfully created.`,
-            });
-            router.push('/login');
         }
+        
+        // Don't redirect, show verification message
+        setSignupComplete(true);
         setLoading(false);
         setFormSubmitted(null);
     }
-  }, [user, isUserLoading, formSubmitted, firestore, router, toast, adminName, adminEmail, adminDept, studentName, studentEmail, studentDept, regNumber, studentGender]);
+  }, [user, isUserLoading, formSubmitted, firestore, adminName, adminEmail, adminDept, studentName, studentEmail, studentDept, regNumber, studentGender]);
 
   useEffect(() => {
     if (userError) {
@@ -160,6 +160,28 @@ export default function SignupPage() {
         setLoading(false);
     }
   }
+  
+  if (signupComplete) {
+    return (
+        <Card className="mx-auto max-w-md w-full">
+            <CardHeader className="space-y-4 text-center">
+                <div className="flex justify-center">
+                   <MailCheck className="h-16 w-16 text-green-500" />
+                </div>
+                <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+                <CardDescription>
+                    We&apos;ve sent a verification link to your email address. Please check your inbox and click the link to activate your account.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild className="w-full">
+                    <Link href="/login">Back to Login</Link>
+                </Button>
+            </CardContent>
+        </Card>
+    )
+  }
+
 
   return (
     <Card className="mx-auto max-w-md w-full">
