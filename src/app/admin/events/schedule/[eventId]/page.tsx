@@ -296,6 +296,7 @@ export default function SchedulePage() {
           teamAId: m.teamAId,
           teamBId: m.teamBId,
           sportType: m.sportType,
+          round: m.round,
       }));
 
       const result = await optimizeScheduleWithAI({
