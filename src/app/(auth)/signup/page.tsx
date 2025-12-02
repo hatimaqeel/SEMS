@@ -136,29 +136,22 @@ export default function SignupPage() {
         });
         return;
     }
+    
     setLoading(true);
-    try {
-        const settingsDocRef = doc(firestore, 'settings', 'app');
-        const settingsDoc = await getDoc(settingsDocRef);
-        if (!settingsDoc.exists() || settingsDoc.data().secretKey !== secretKey) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Invalid secret key.",
-            });
-            setLoading(false);
-            return;
-        }
-        setFormSubmitted('admin');
-        initiateEmailSignUp(auth, adminEmail, adminPassword);
-    } catch (error) {
+    
+    const ADMIN_SECRET_KEY = 'unisport@cust2025';
+    if (secretKey !== ADMIN_SECRET_KEY) {
         toast({
             variant: "destructive",
             title: "Error",
-            description: "Could not validate secret key. Please try again.",
+            description: "Invalid secret key.",
         });
         setLoading(false);
+        return;
     }
+
+    setFormSubmitted('admin');
+    initiateEmailSignUp(auth, adminEmail, adminPassword);
   }
   
   if (signupComplete) {

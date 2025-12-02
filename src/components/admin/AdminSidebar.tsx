@@ -35,8 +35,8 @@ const mainNavItems = [
   { href: "/admin/departments", icon: Building, label: "Manage Departments" },
 ];
 
-const bottomNavItems = [
-  { href: "/admin/settings", icon: Settings, label: "Settings" },
+const bottomNavItems: { href: string, icon: any, label: string }[] = [
+  // { href: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 
 export function AdminSidebar() {
