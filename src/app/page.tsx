@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,16 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { events } from "@/lib/placeholder-data";
 import { Calendar, MapPin } from "lucide-react";
 
-export default function Home() {
+// The data is local, but we'll simulate an async fetch.
+// This is a more robust pattern for data fetching in Next.js Server Components.
+const getEvents = async () => {
+  return Promise.resolve(events);
+}
+
+export default async function Home() {
   const heroImage = PlaceHolderImages.find(p => p.id === 'hero');
+  const upcomingEvents = await getEvents();
+
 
   const getSportImage = (sportType: string) => {
     const sportImage = PlaceHolderImages.find(p => p.id === sportType.toLowerCase());
@@ -55,7 +64,7 @@ export default function Home() {
           <div className="container mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 font-headline">Upcoming Tournaments</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {events.slice(0, 3).map((event) => {
+              {upcomingEvents.slice(0, 3).map((event) => {
                 const sportImage = getSportImage(event.sportType);
                 return (
                   <Card key={event.eventId} className="overflow-hidden bg-card hover:shadow-lg transition-shadow duration-300">
