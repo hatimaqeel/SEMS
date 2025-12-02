@@ -241,7 +241,7 @@ export default function SchedulePage() {
         optimizedMatches = result.optimizedMatches;
       }
       
-      const allMatches: Match[] = matchesToSchedule.map(matchToSchedule => {
+      let allMatches: Match[] = matchesToSchedule.map(matchToSchedule => {
           const optimized = optimizedMatches.find(opt => opt.matchId === matchToSchedule.matchId);
           const isBye = matchToSchedule.teamAId === 'TBD' || matchToSchedule.teamBId === 'TBD';
           const winnerId = isBye ? (matchToSchedule.teamAId !== 'TBD' ? matchToSchedule.teamAId : matchToSchedule.teamBId) : '';
@@ -257,39 +257,39 @@ export default function SchedulePage() {
           };
       });
 
-      await updateDoc(eventRef, { matches: allMatches, status: 'ongoing' });
-      
       const bracketRef = doc(firestore, 'brackets', eventId);
+      
       const newBracket: Bracket = {
         id: eventId,
         rounds: [{
-            roundIndex: 1,
-            roundName: `Round 1`,
-            matches: allMatches.map(m => m.matchId)
+          roundIndex: 1,
+          roundName: `Round 1`,
+          matches: allMatches.map(m => m.matchId)
         }]
       };
       
       if (event.settings.format === 'knockout') {
-        let numMatchesInRound = Math.ceil(approvedTeams.length / 2);
-        let roundIndex = 2;
-        let roundNamePrefix = "Round";
+        let numMatchesInRound = allMatches.filter(m => m.status === 'completed' || m.status === 'scheduled').length;
+        let roundIndex = 1;
         
         while (numMatchesInRound > 1) {
-            numMatchesInRound = Math.floor(numMatchesInRound / 2);
-            if (numMatchesInRound === 0) break;
+            roundIndex++;
+            const numNextRoundMatches = Math.floor(numMatchesInRound / 2);
+            if (numNextRoundMatches === 0) break;
+
+            let roundName;
+            if (numNextRoundMatches === 1) roundName = "Final";
+            else if (numNextRoundMatches <= 2) roundName = "Semifinals";
+            else if (numNextRoundMatches <= 4) roundName = "Quarterfinals";
+            else roundName = `Round ${roundIndex}`;
             
-            let roundName = `${roundNamePrefix} ${roundIndex}`;
-            if (numMatchesInRound === 1) roundName = "Final";
-            else if (numMatchesInRound === 2) roundName = "Semifinals";
-            else if (numMatchesInRound === 4) roundName = "Quarterfinals";
+            const nextRoundMatches: Match[] = [];
+            const nextRoundMatchIds: string[] = [];
 
-            const roundMatches: Match[] = [];
-            const newMatchIds: string[] = [];
-
-            for (let i = 0; i < numMatchesInRound; i++) {
+            for (let i = 0; i < numNextRoundMatches; i++) {
                 const matchId = `m${Date.now() + roundIndex * 100 + i}`;
-                newMatchIds.push(matchId);
-                roundMatches.push({
+                nextRoundMatchIds.push(matchId);
+                nextRoundMatches.push({
                     matchId: matchId,
                     teamAId: 'TBD',
                     teamBId: 'TBD',
@@ -303,18 +303,18 @@ export default function SchedulePage() {
                 });
             }
             
-            allMatches.push(...roundMatches);
+            allMatches.push(...nextRoundMatches);
             newBracket.rounds.push({
                 roundIndex,
                 roundName,
-                matches: newMatchIds
+                matches: nextRoundMatchIds
             });
-
-            roundIndex++;
+            
+            numMatchesInRound = numNextRoundMatches;
         }
-         await updateDoc(eventRef, { matches: allMatches });
       }
 
+      await updateDoc(eventRef, { matches: allMatches, status: 'ongoing' });
       setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
 
       toast({

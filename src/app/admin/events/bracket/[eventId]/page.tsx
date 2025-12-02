@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -135,20 +136,20 @@ export default function BracketPage() {
 
     if (event.settings.format === 'knockout') {
         const currentRound = bracket.rounds.find(r => r.matches.includes(match.matchId));
-        if (currentRound) {
-            const nextRoundIndex = currentRound.roundIndex + 1;
-            const nextRound = bracket.rounds.find(r => r.roundIndex === nextRoundIndex);
+        
+        if (currentRound && currentRound.roundName !== 'Final') {
+            const nextRound = bracket.rounds.find(r => r.roundIndex === currentRound.roundIndex + 1);
 
             if (nextRound) {
-                const matchIndexInRound = currentRound.matches.indexOf(match.matchId);
-                const nextMatchIndexInNextRound = Math.floor(matchIndexInRound / 2);
+                const matchIndexInCurrentRound = currentRound.matches.indexOf(match.matchId);
+                const nextMatchIndexInNextRound = Math.floor(matchIndexInCurrentRound / 2);
                 const nextMatchId = nextRound.matches[nextMatchIndexInNextRound];
                 
-                const nextMatchIndexInEvent = updatedMatches.findIndex(m => m.matchId === nextMatchId);
+                const nextMatchInEventIndex = updatedMatches.findIndex(m => m.matchId === nextMatchId);
 
-                if (nextMatchIndexInEvent !== -1) {
-                    const teamSlotToUpdate = matchIndexInRound % 2 === 0 ? 'teamAId' : 'teamBId';
-                    updatedMatches[nextMatchIndexInEvent][teamSlotToUpdate] = winner.teamId;
+                if (nextMatchInEventIndex !== -1) {
+                    const teamSlotToUpdate = matchIndexInCurrentRound % 2 === 0 ? 'teamAId' : 'teamBId';
+                    updatedMatches[nextMatchInEventIndex][teamSlotToUpdate] = winner.teamId;
                 }
             }
         }
