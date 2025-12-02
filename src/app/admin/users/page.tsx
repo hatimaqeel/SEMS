@@ -1,14 +1,15 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import {
   collection,
   doc,
   setDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import type { User, Department } from '@/lib/types';
@@ -188,6 +189,9 @@ const UserTable = ({
 export default function UsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user: currentUser, isUserLoading } = useUser();
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -214,8 +218,25 @@ export default function UsersPage() {
   const [editReg, setEditReg] = useState('');
   const [editRole, setEditRole] = useState<User['role']>('student');
 
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (currentUser) {
+        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        if (userDoc.exists() && userDoc.data().role === 'admin') {
+          setIsAdmin(true);
+        }
+      }
+    };
+    if (!isUserLoading) {
+      checkAdmin();
+    }
+  }, [currentUser, isUserLoading, firestore]);
 
-  const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  const usersRef = useMemoFirebase(() => {
+    // Only fetch users if the current user is an admin
+    if (!isAdmin) return null;
+    return collection(firestore, 'users');
+  }, [firestore, isAdmin]);
   const { data: users, isLoading } = useCollection<User>(usersRef);
   
   const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
@@ -444,7 +465,7 @@ export default function UsersPage() {
             <TabsContent value="students" className="mt-0">
               <UserTable 
                 users={students} 
-                isLoading={isLoading} 
+                isLoading={isLoading || isUserLoading} 
                 roleVariant={roleVariant}
                 onEdit={handleEditUserClick}
                 onChangeRole={handleChangeRoleClick}
@@ -456,7 +477,7 @@ export default function UsersPage() {
             <TabsContent value="administrators" className="mt-0">
                <UserTable 
                 users={admins} 
-                isLoading={isLoading} 
+                isLoading={isLoading || isUserLoading} 
                 roleVariant={roleVariant} 
                 onEdit={handleEditUserClick}
                 onChangeRole={handleChangeRoleClick}
@@ -637,3 +658,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
