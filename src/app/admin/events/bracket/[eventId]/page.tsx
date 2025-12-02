@@ -43,12 +43,12 @@ const BracketMatch = ({ match, onSelectWinner }: { match: BracketMatch, onSelect
     <div className="flex flex-col gap-2 p-3 bg-card border rounded-lg shadow-sm w-64 min-h-[100px] justify-center">
        <div className={cn("flex items-center justify-between p-2 rounded", winner && winner.teamId === match.teamA?.teamId && 'bg-green-500/20')}>
         <span className="text-sm font-medium truncate">{match.teamA?.teamName || 'TBD'}</span>
-        {match.teamA && !isComplete && <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onSelectWinner(match, match.teamA!)}>Win</Button>}
+        {match.teamA && !isComplete && match.teamA.teamId !== 'TBD' && match.teamB?.teamId !== 'TBD' && <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onSelectWinner(match, match.teamA!)}>Win</Button>}
       </div>
       <div className="h-px bg-border" />
        <div className={cn("flex items-center justify-between p-2 rounded", winner && winner.teamId === match.teamB?.teamId && 'bg-green-500/20')}>
         <span className="text-sm font-medium truncate">{match.teamB?.teamName || 'TBD'}</span>
-        {match.teamB && !isComplete && <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onSelectWinner(match, match.teamB!)}>Win</Button>}
+        {match.teamB && !isComplete && match.teamA?.teamId !== 'TBD' && match.teamB.teamId !== 'TBD' && <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onSelectWinner(match, match.teamB!)}>Win</Button>}
       </div>
        {match.startTime && (
         <div className="border-t mt-2 pt-2 text-xs text-muted-foreground">
@@ -115,6 +115,14 @@ export default function BracketPage() {
       });
       return;
     }
+     if (!match.teamAId || !match.teamBId || match.teamAId === 'TBD' || match.teamBId === 'TBD') {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Declare Winner',
+        description: 'Both teams must be assigned to this match before a winner can be declared.',
+      });
+      return;
+    }
     setSelectedMatch({ match, winner });
     setIsAlertOpen(true);
   };
@@ -125,7 +133,6 @@ export default function BracketPage() {
     const { match, winner } = selectedMatch;
     const eventDocRef = doc(firestore, "events", eventId);
     
-    // Create a mutable copy of the matches array
     const updatedMatches = event.matches.map(m => ({ ...m }));
 
     const currentMatchIndex = updatedMatches.findIndex(m => m.matchId === match.matchId);
