@@ -23,7 +23,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1">
-        <section className="relative w-full h-[60vh] md:h-[70vh] flex items-center justify-center text-center text-white">
+        <section className="relative w-full h-[80vh] md:h-[calc(100vh-56px)] flex items-center justify-center text-center text-white">
           {heroImage && (
             <Image
               src={heroImage.imageUrl}
@@ -49,51 +49,6 @@ export default function Home() {
               <Button asChild size="lg" variant="secondary">
                 <Link href="/login">Login / Register</Link>
               </Button>
-            </div>
-          </div>
-        </section>
-
-        <section id="tournaments" className="py-12 md:py-20 bg-background">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 font-headline">Upcoming Tournaments</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {upcomingEvents.slice(0, 3).map((event) => {
-                const sportImage = getSportImage(event.sportType);
-                return (
-                  <Card key={event.eventId} className="overflow-hidden bg-card hover:shadow-lg transition-shadow duration-300">
-                    <CardHeader className="p-0">
-                      <div className="relative h-48 w-full">
-                        {sportImage && (
-                           <Image
-                            src={sportImage.imageUrl}
-                            alt={sportImage.description}
-                            fill
-                            className="object-cover"
-                            data-ai-hint={sportImage.imageHint}
-                          />
-                        )}
-                      </div>
-                      <div className="p-6">
-                        <Badge variant="secondary" className="mb-2">{event.sportType}</Badge>
-                        <CardTitle className="font-headline text-2xl">{event.name}</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center text-muted-foreground text-sm mb-2">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        <span>{new Date(event.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                      </div>
-                      <div className="flex items-center text-muted-foreground text-sm">
-                        <MapPin className="mr-2 h-4 w-4" />
-                        <span>{event.department} Department</span>
-                      </div>
-                       <Button asChild className="w-full mt-6">
-                        <Link href={`/events/${event.eventId}`}>View Details</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
             </div>
           </div>
         </section>
