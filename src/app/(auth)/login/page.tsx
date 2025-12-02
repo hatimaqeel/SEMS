@@ -44,7 +44,7 @@ export default function LoginPage() {
             description:
               'Please check your inbox and verify your email address before logging in.',
           });
-          signOut(auth);
+          await signOut(auth);
           setLoading(false);
           return;
         }
@@ -78,7 +78,7 @@ export default function LoginPage() {
                 title: 'Account Deactivated',
                 description: 'Your account has been deactivated by the Administration. Please contact the support team for further details.',
             });
-            signOut(auth);
+            await signOut(auth);
             setLoading(false);
             return;
         }
