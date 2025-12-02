@@ -420,7 +420,7 @@ export default function UsersPage() {
 
         toast({
             title: 'User Deleted',
-            description: `${selectedUser.displayName}'s data has been deleted from the database. Their authentication account may still exist.`,
+            description: `${selectedUser.displayName}'s data has been deleted from the database.`,
         });
     } catch (error: any) {
         console.error("Error deleting user:", error);
