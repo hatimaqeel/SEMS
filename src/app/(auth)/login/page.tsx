@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -18,7 +17,7 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
 
@@ -51,24 +50,36 @@ export default function LoginPage() {
         }
 
         const userDocRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
+        let userDoc = await getDoc(userDocRef);
 
-        // 2. Handle deleted user (Firestore doc does not exist)
+        // 2. Handle first-time verified login: create the user document
         if (!userDoc.exists()) {
-            toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: 'No account found with this email.',
-            });
-            signOut(auth);
-            setLoading(false);
-            return;
+          // This is a minimal user record.
+          // In a real app, you might have a "complete profile" step
+          // or derive the role/dept from somewhere else.
+          // For now, we default to 'student'.
+           const newUser: Omit<User, 'id'> = {
+            userId: user.uid,
+            displayName: user.displayName || user.email || 'New User',
+            email: user.email!,
+            role: 'student',
+            dept: 'Unassigned',
+            status: 'active',
+            emailVerified: true,
+          };
+          await setDoc(userDocRef, newUser);
+          // Re-fetch the doc after creating it
+          userDoc = await getDoc(userDocRef);
+           toast({
+            title: 'Account Verified!',
+            description: 'Your profile has been created. Welcome!',
+          });
         }
-
+        
         const userData = userDoc.data() as User;
         
-        // Sync Firestore with Auth verification status
-        if (userData.emailVerified === false && user.emailVerified === true) {
+        // Sync Firestore with Auth verification status if it was somehow missed
+        if (userData.emailVerified === false) {
             await updateDoc(userDocRef, { emailVerified: true });
         }
 
@@ -91,7 +102,6 @@ export default function LoginPage() {
         } else {
           router.push('/dashboard');
         }
-        // No setLoading(false) here because the router push will unmount the component
       };
 
       checkUserStatusAndRedirect();

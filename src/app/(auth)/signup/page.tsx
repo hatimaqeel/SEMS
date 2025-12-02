@@ -25,8 +25,7 @@ import { Logo } from '@/components/common/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
-import { collection, doc, getDoc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection } from 'firebase/firestore';
 import type { Department } from '@/lib/types';
 import { MailCheck } from 'lucide-react';
 
@@ -34,26 +33,17 @@ export default function SignupPage() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, isUserLoading, userError } = useUser();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
-  const [formSubmitted, setFormSubmitted] = useState<'student' | 'admin' | null>(null);
   const [signupComplete, setSignupComplete] = useState(false);
 
-
   // Student form state
-  const [studentName, setStudentName] = useState('');
-  const [regNumber, setRegNumber] = useState('');
-  const [studentDept, setStudentDept] = useState('');
-  const [studentGender, setStudentGender] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
   const [studentConfirmPassword, setStudentConfirmPassword] = useState('');
 
   // Admin form state
-  const [adminName, setAdminName] = useState('');
-  const [adminDept, setAdminDept] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
@@ -62,62 +52,8 @@ export default function SignupPage() {
   const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
   const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
 
-  useEffect(() => {
-    if (user && !isUserLoading && formSubmitted) {
-        setLoading(true);
-        let userData;
-        if (formSubmitted === 'student') {
-            userData = {
-                userId: user.uid,
-                displayName: studentName,
-                email: studentEmail,
-                role: 'student',
-                dept: studentDept,
-                registrationNumber: regNumber,
-                gender: studentGender,
-                status: 'active',
-                emailVerified: false,
-            };
-        } else if (formSubmitted === 'admin') {
-            userData = {
-                userId: user.uid,
-                displayName: adminName,
-                email: adminEmail,
-                role: 'admin',
-                dept: adminDept,
-                status: 'active',
-                emailVerified: false,
-            };
-        }
-
-        if (userData) {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            setDocumentNonBlocking(userDocRef, userData, { merge: true });
-        }
-        
-        // Don't redirect, show verification message
-        setSignupComplete(true);
-        setLoading(false);
-        setFormSubmitted(null);
-    }
-  }, [user, isUserLoading, formSubmitted, firestore, adminName, adminEmail, adminDept, studentName, studentEmail, studentDept, regNumber, studentGender]);
-
-  useEffect(() => {
-    if (userError) {
-        toast({
-            variant: 'destructive',
-            title: 'Signup Failed',
-            description: userError.message || 'An unexpected error occurred.',
-        });
-        setLoading(false);
-        setFormSubmitted(null);
-    }
-  }, [userError, toast]);
-
-
-  const handleStudentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (studentPassword !== studentConfirmPassword) {
+  const handleSubmit = (email: string, password:  string, confirmPass: string, isAdmin: boolean) => {
+    if (password !== confirmPass) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -125,38 +61,43 @@ export default function SignupPage() {
       });
       return;
     }
+    
+    if (isAdmin) {
+      const ADMIN_SECRET_KEY = 'unisport@cust2025';
+      if (secretKey !== ADMIN_SECRET_KEY) {
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Invalid secret key.",
+          });
+          return;
+      }
+    }
+
     setLoading(true);
-    setFormSubmitted('student');
-    initiateEmailSignUp(auth, studentEmail, studentPassword);
+    initiateEmailSignUp(auth, email, password)
+        .then(() => {
+            setSignupComplete(true);
+            setLoading(false);
+        })
+        .catch(error => {
+             toast({
+                variant: 'destructive',
+                title: 'Signup Failed',
+                description: error.message || 'An unexpected error occurred.',
+            });
+            setLoading(false);
+        });
+  };
+
+  const handleStudentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSubmit(studentEmail, studentPassword, studentConfirmPassword, false);
   };
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword !== adminConfirmPassword) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Passwords do not match.",
-        });
-        return;
-    }
-    
-    setLoading(true);
-    
-    // This should be an environment variable in a real app
-    const ADMIN_SECRET_KEY = 'unisport@cust2025';
-    if (secretKey !== ADMIN_SECRET_KEY) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Invalid secret key.",
-        });
-        setLoading(false);
-        return;
-    }
-
-    setFormSubmitted('admin');
-    initiateEmailSignUp(auth, adminEmail, adminPassword);
+    handleSubmit(adminEmail, adminPassword, adminConfirmPassword, true);
   }
   
   if (signupComplete) {
@@ -202,15 +143,15 @@ export default function SignupPage() {
             <form onSubmit={handleStudentSubmit} className="grid gap-4 mt-4">
               <div className="grid gap-2">
                 <Label htmlFor="student-name">Name</Label>
-                <Input id="student-name" placeholder="John Doe" required value={studentName} onChange={e => setStudentName(e.target.value)} disabled={loading} />
+                <Input id="student-name" placeholder="John Doe" required disabled={loading} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="reg-number">Registration Number</Label>
-                <Input id="reg-number" placeholder="CS-2021-001" required value={regNumber} onChange={e => setRegNumber(e.target.value)} disabled={loading}/>
+                <Input id="reg-number" placeholder="CS-2021-001" required disabled={loading}/>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-dept">Department</Label>
-                <Select onValueChange={setStudentDept} value={studentDept} disabled={loading || isLoadingDepts} required>
+                <Select disabled={loading || isLoadingDepts} required>
                   <SelectTrigger id="student-dept">
                     <SelectValue placeholder={isLoadingDepts ? "Loading departments..." : "Select department"} />
                   </SelectTrigger>
@@ -223,7 +164,7 @@ export default function SignupPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="student-gender">Gender</Label>
-                <Select onValueChange={setStudentGender} value={studentGender} disabled={loading} required>
+                <Select disabled={loading} required>
                   <SelectTrigger id="student-gender">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
@@ -255,11 +196,11 @@ export default function SignupPage() {
             <form onSubmit={handleAdminSubmit} className="grid gap-4 mt-4">
               <div className="grid gap-2">
                 <Label htmlFor="admin-name">Name</Label>
-                <Input id="admin-name" placeholder="Admin User" required value={adminName} onChange={e => setAdminName(e.target.value)} disabled={loading} />
+                <Input id="admin-name" placeholder="Admin User" required disabled={loading} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="admin-dept">Department</Label>
-                <Input id="admin-dept" placeholder="Administration" required value={adminDept} onChange={e => setAdminDept(e.target.value)} disabled={loading} />
+                <Input id="admin-dept" placeholder="Administration" required disabled={loading} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="admin-email">Email</Label>
