@@ -11,7 +11,7 @@ import { events } from "@/lib/placeholder-data";
 import { Calendar, MapPin } from "lucide-react";
 
 export default function Home() {
-  const heroImage = PlaceHolderImages.find(p => p.id === 'university');
+  const heroImage = PlaceHolderImages.find(p => p.id === 'hero');
   const upcomingEvents = events;
 
   const getSportImage = (sportType: string) => {
