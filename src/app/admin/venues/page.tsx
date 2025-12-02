@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 import type { Venue } from '@/lib/types';
@@ -88,9 +89,9 @@ export default function VenuesPage() {
   };
 
   const confirmDelete = async () => {
-    if (selectedVenue?.venueId) {
+    if (selectedVenue?.id) {
       try {
-        await deleteDoc(doc(firestore, 'venues', selectedVenue.venueId));
+        await deleteDoc(doc(firestore, 'venues', selectedVenue.id));
         toast({
           title: 'Venue Deleted',
           description: `"${selectedVenue.name}" has been deleted.`,
@@ -129,7 +130,7 @@ export default function VenuesPage() {
 
     try {
       if (selectedVenue) {
-        const venueDocRef = doc(firestore, 'venues', selectedVenue.venueId);
+        const venueDocRef = doc(firestore, 'venues', selectedVenue.id!);
         await updateDoc(venueDocRef, venueData);
         toast({
           title: 'Venue Updated',
@@ -137,7 +138,7 @@ export default function VenuesPage() {
         });
       } else {
         const newDocRef = doc(collection(firestore, 'venues'));
-        await setDoc(newDocRef, { ...venueData, venueId: newDocRef.id });
+        await setDoc(newDocRef, { ...venueData, id: newDocRef.id, venueId: newDocRef.id });
         toast({
           title: 'Venue Created',
           description: `"${venueName}" has been successfully created.`,
@@ -189,7 +190,7 @@ export default function VenuesPage() {
                 </TableRow>
               )}
               {venues && venues.map((venue) => (
-                <TableRow key={venue.venueId}>
+                <TableRow key={venue.id}>
                   <TableCell className="font-medium">{venue.name}</TableCell>
                   <TableCell>{venue.location}</TableCell>
                   <TableCell>{venue.capacity.toLocaleString()}</TableCell>
@@ -203,8 +204,10 @@ export default function VenuesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Calendar className="mr-2 h-4 w-4" /> View Calendar
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/venues/calendar/${venue.id}`}>
+                            <Calendar className="mr-2 h-4 w-4" /> View Calendar
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEditClick(venue)}>
                           <Edit className="mr-2 h-4 w-4" /> Edit Venue
