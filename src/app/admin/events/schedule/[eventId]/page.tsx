@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -75,8 +76,17 @@ export default function SchedulePage() {
   const getVenueName = (venueId: string) => venues?.find(v => v.id === venueId)?.name || venueId;
 
   const handleEditClick = (match: Match) => {
+    if (match.status === 'completed') {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Edit Completed Match',
+        description: 'This match has already been completed and cannot be rescheduled.',
+      });
+      return;
+    }
     setSelectedMatch(match);
     setEditVenue(match.venueId);
+    // Correctly format the time from the ISO string
     setEditTime(match.startTime ? new Date(match.startTime).toTimeString().substring(0, 5) : '');
     setIsEditModalOpen(true);
   };
@@ -96,12 +106,12 @@ export default function SchedulePage() {
       setIsSubmittingEdit(false);
       return;
     }
-
+    
+    // Use the original match date, not the event start date
     const matchDate = new Date(selectedMatch.startTime || event.startDate);
     const [hours, minutes] = editTime.split(':').map(Number);
-    const newStartTime = new Date(matchDate);
-    newStartTime.setHours(hours, minutes, 0, 0);
-    
+    const newStartTime = new Date(matchDate.getFullYear(), matchDate.getMonth(), matchDate.getDate(), hours, minutes);
+
     if (hours < 8 || hours >= 18) {
       toast({
         variant: 'destructive',
@@ -111,7 +121,6 @@ export default function SchedulePage() {
       setIsSubmittingEdit(false);
       return;
     }
-
 
     const newEndTime = new Date(newStartTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
 
@@ -463,6 +472,7 @@ export default function SchedulePage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => handleEditClick(match)}
+                            disabled={match.status === 'completed'}
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Match
