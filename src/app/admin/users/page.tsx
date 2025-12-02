@@ -62,6 +62,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { deleteUser } from '@/ai/flows/delete-user';
 
 const UserTable = ({ 
     users, 
@@ -379,16 +380,29 @@ export default function UsersPage() {
   
   const confirmDelete = async () => {
     if (!selectedUser) return;
-    const userDocRef = doc(firestore, 'users', selectedUser.userId);
+    
     try {
-        // Note: Deleting the Firebase Auth user should be done in a backend function for security.
-        // This only deletes the Firestore record.
+        // Step 1: Call the secure backend flow to delete the Auth user.
+        await deleteUser({ uid: selectedUser.userId });
+
+        // Step 2: Delete the Firestore document.
+        const userDocRef = doc(firestore, 'users', selectedUser.userId);
         await deleteDoc(userDocRef);
-        toast({ title: 'User Deleted', description: `${selectedUser.displayName} has been permanently deleted.`});
+
+        toast({
+            title: 'User Deleted',
+            description: `${selectedUser.displayName} has been permanently deleted from the system.`,
+        });
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Delete Failed', description: error.message });
+        console.error("Error deleting user:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Delete Failed',
+            description: error.message || 'Could not delete the user at this time.',
+        });
     } finally {
         setIsDeleteConfirmOpen(false);
+        setSelectedUser(null);
     }
   };
 
