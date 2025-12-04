@@ -103,6 +103,7 @@ export default function LoginPage() {
         }
         
         const userData = userDoc.data() as User;
+        const isUserAdmin = userData.role === 'admin' || userData.email === 'sems.cust@outlook.com';
         
         if (userData.status === 'deactivated') {
             toast({
@@ -115,16 +116,37 @@ export default function LoginPage() {
             return;
         }
 
-        if (userData.role === 'admin' || userData.email === 'sems.cust@outlook.com') {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/dashboard');
+        // Role-based routing check
+        if (isAdminLogin) {
+            if (!isUserAdmin) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Access Denied',
+                    description: 'This account is not an admin account. Please use the student login.',
+                });
+                await signOut(auth);
+                setLoading(false);
+                return;
+            }
+            router.push('/admin/dashboard');
+        } else { // Student login
+             if (isUserAdmin) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Incorrect Login Form',
+                    description: 'This is an admin account. Please log in via the Admin Dashboard button.',
+                });
+                await signOut(auth);
+                setLoading(false);
+                return;
+            }
+            router.push('/dashboard');
         }
       };
 
       checkUserStatusAndRedirect();
     }
-  }, [user, isUserLoading, router, firestore, auth, toast]);
+  }, [user, isUserLoading, router, firestore, auth, toast, isAdminLogin]);
 
   useEffect(() => {
     if (userError) {
@@ -149,7 +171,7 @@ export default function LoginPage() {
         <div className="flex justify-center">
           <Logo />
         </div>
-        <CardTitle className="text-2xl">Login to your account</CardTitle>
+        <CardTitle className="text-2xl">{isAdminLogin ? 'Admin Login' : 'Login to your account'}</CardTitle>
         <CardDescription>
           {isAdminLogin
             ? 'Enter admin credentials to access the dashboard.'
