@@ -189,14 +189,26 @@ export default function SchedulePage() {
     setGenerationError(null);
 
     const approvedTeams = event.teams.filter(team => team.status === 'approved');
+    
+    if (event.settings.format === 'knockout') {
+        const isPowerOfTwo = (n: number) => {
+            return n > 1 && (n & (n - 1)) === 0;
+        };
+        if (!isPowerOfTwo(approvedTeams.length)) {
+            setGenerationError(
+                'Knockout tournaments require a valid bracket size (2, 4, 8, 16, …).\nThe current number of teams cannot form a knockout bracket.\nPlease adjust the teams or choose the Round-Robin format instead.'
+            );
+            setIsGenerating(false);
+            return;
+        }
+    }
+
     if (approvedTeams.length < 2) {
         setGenerationError('Scheduling requires at least two approved teams.');
         setIsGenerating(false);
         return;
     }
     
-    // --- START OF MODIFIED LOGIC ---
-
     let allMatchesToSchedule: Omit<Match, 'venueId' | 'startTime' | 'endTime' | 'status'>[] = [];
     const bracketRef = doc(firestore, 'brackets', eventId);
     const newBracket: Bracket = { id: eventId, rounds: [] };
@@ -400,7 +412,7 @@ export default function SchedulePage() {
         <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4"/>
             <AlertTitle>Scheduling Error</AlertTitle>
-            <AlertDescription>{generationError}</AlertDescription>
+            <AlertDescription className="whitespace-pre-wrap">{generationError}</AlertDescription>
         </Alert>
       )}
 
