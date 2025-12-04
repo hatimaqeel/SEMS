@@ -86,6 +86,7 @@ export type User = {
   email: string;
   status?: 'active' | 'deactivated';
   registrationNumber?: string;
+  facultyId?: string;
   gender?: 'male' | 'female' | 'other';
   photoURL?: string;
   emailVerified?: boolean;

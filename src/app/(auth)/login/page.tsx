@@ -76,6 +76,7 @@ export default function LoginPage() {
                 dept: pendingData.dept,
                 status: 'active',
                 registrationNumber: pendingData.registrationNumber,
+                facultyId: pendingData.facultyId,
                 gender: pendingData.gender,
              }
              // Delete the pending profile
@@ -111,7 +112,7 @@ export default function LoginPage() {
             return;
         }
 
-        if (userData.role === 'admin') {
+        if (userData.role === 'admin' || userData.email === 'sems.cust@outlook.com') {
           router.push('/admin/dashboard');
         } else {
           router.push('/dashboard');
@@ -224,3 +225,5 @@ export default function LoginPage() {
     </Card>
   );
 }
+
+    

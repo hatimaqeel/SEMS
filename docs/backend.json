@@ -286,6 +286,10 @@
           "type": "string",
           "description": "The email of the user.",
           "format": "email"
+        },
+        "facultyId": {
+            "type": "string",
+            "description": "The faculty ID of the user if they are an admin."
         }
       },
       "required": [
@@ -306,7 +310,8 @@
           "role": { "type": "string", "enum": ["admin", "student"] },
           "dept": { "type": "string" },
           "registrationNumber": { "type": "string" },
-          "gender": { "type": "string" }
+          "gender": { "type": "string" },
+          "facultyId": { "type": "string" }
         },
         "required": ["displayName", "email", "role", "dept"]
     },

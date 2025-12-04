@@ -134,10 +134,11 @@ const UserTable = ({
                         </AvatarFallback>
                         </Avatar>
                         <div className="grid gap-0.5">
-                        <span className="font-medium">{user.displayName}</span>
-                        <span className="text-xs text-muted-foreground">
-                            {user.email}
-                        </span>
+                          <span className="font-medium">{user.displayName}</span>
+                          <span className="text-xs text-muted-foreground">
+                              {user.email}
+                          </span>
+                          {user.facultyId && <span className="text-xs text-muted-foreground">Faculty ID: {user.facultyId}</span>}
                         </div>
                     </div>
                     </TableCell>
@@ -225,12 +226,14 @@ export default function UsersPage() {
   const [password, setPassword] = useState('');
   const [department, setDepartment] = useState('');
   const [regNumber, setRegNumber] = useState('');
+  const [facultyId, setFacultyId] = useState('');
   const [gender, setGender] = useState('');
   
   // Edit state
   const [editName, setEditName] = useState('');
   const [editDept, setEditDept] = useState('');
   const [editReg, setEditReg] = useState('');
+  const [editFacultyId, setEditFacultyId] = useState('');
   const [editRole, setEditRole] = useState<User['role']>('student');
 
   useEffect(() => {
@@ -267,6 +270,7 @@ export default function UsersPage() {
     setDepartment('');
     setRegNumber('');
     setGender('');
+    setFacultyId('');
   };
   
   const handleAddUser = () => {
@@ -290,8 +294,9 @@ export default function UsersPage() {
           email: email,
           role,
           dept: department,
-          registrationNumber: role === 'student' ? regNumber : '',
-          gender: role === 'student' ? gender : '',
+          registrationNumber: role === 'student' ? regNumber : undefined,
+          facultyId: role === 'admin' ? facultyId : undefined,
+          gender: role === 'student' ? gender : undefined,
         };
 
         const userProfileRef = doc(firestore, 'userProfiles', newUser.uid);
@@ -322,6 +327,7 @@ export default function UsersPage() {
     setEditName(user.displayName);
     setEditDept(user.dept);
     setEditReg(user.registrationNumber || '');
+    setEditFacultyId(user.facultyId || '');
     setIsEditUserOpen(true);
   };
 
@@ -335,7 +341,8 @@ export default function UsersPage() {
       await updateDoc(userDocRef, {
         displayName: editName,
         dept: editDept,
-        registrationNumber: editReg,
+        registrationNumber: selectedUser.role === 'student' ? editReg : undefined,
+        facultyId: selectedUser.role === 'admin' ? editFacultyId : undefined,
       });
       toast({ title: 'User Updated', description: `${editName}'s profile has been updated.` });
       setIsEditUserOpen(false);
@@ -359,6 +366,12 @@ export default function UsersPage() {
   const handleChangeRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
+
+    if (currentUserRole !== 'super-admin' && editRole === 'admin') {
+      toast({ variant: 'destructive', title: 'Permission Denied', description: 'Only Super Admins can assign the Admin role.'});
+      return;
+    }
+
     setIsSubmitting(true);
 
     const userDocRef = doc(firestore, 'users', selectedUser.userId);
@@ -511,7 +524,7 @@ export default function UsersPage() {
           <Tabs value={role} onValueChange={(v) => setRole(v as 'student' | 'admin')}>
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="student" disabled={isSubmitting}>Student</TabsTrigger>
-                <TabsTrigger value="admin" disabled={isSubmitting}>Administrator</TabsTrigger>
+                <TabsTrigger value="admin" disabled={isSubmitting || currentUserRole !== 'super-admin'}>Administrator</TabsTrigger>
             </TabsList>
             <form onSubmit={handleFormSubmit}>
                 <TabsContent value="student" className="grid gap-4 mt-4">
@@ -566,6 +579,10 @@ export default function UsersPage() {
                         <Input id="admin-name" placeholder="Admin User" required value={name} onChange={e => setName(e.target.value)} disabled={isSubmitting} />
                     </div>
                     <div className="grid gap-2">
+                        <Label htmlFor="faculty-id">Faculty ID</Label>
+                        <Input id="faculty-id" placeholder="FAC-001" required={role === 'admin'} value={facultyId} onChange={e => setFacultyId(e.target.value)} disabled={isSubmitting} />
+                    </div>
+                    <div className="grid gap-2">
                         <Label htmlFor="admin-dept">Department</Label>
                         <Input id="admin-dept" placeholder="Administration" required value={department} onChange={e => setDepartment(e.target.value)} disabled={isSubmitting} />
                     </div>
@@ -613,6 +630,12 @@ export default function UsersPage() {
                     <Input id="edit-reg" value={editReg} onChange={e => setEditReg(e.target.value)} disabled={isSubmitting}/>
                 </div>
             )}
+             {selectedUser?.role === 'admin' && (
+                <div className="grid gap-2">
+                    <Label htmlFor="edit-faculty-id">Faculty ID</Label>
+                    <Input id="edit-faculty-id" value={editFacultyId} onChange={e => setEditFacultyId(e.target.value)} disabled={isSubmitting}/>
+                </div>
+            )}
              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
           </form>
         </DialogContent>
@@ -631,8 +654,8 @@ export default function UsersPage() {
                 <Select onValueChange={(v) => setEditRole(v as User['role'])} value={editRole} required disabled={isSubmitting}>
                     <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="student" disabled={currentUserRole !== 'super-admin'}>Student</SelectItem>
+                        <SelectItem value="admin" disabled={currentUserRole !== 'super-admin'}>Admin</SelectItem>
                         <SelectItem value="coordinator">Coordinator</SelectItem>
                         <SelectItem value="referee">Referee</SelectItem>
                     </SelectContent>
