@@ -33,6 +33,9 @@ export default function Home() {
               The ultimate sports event management system for universities. Streamline your tournaments from start to finish.
             </p>
             <div className="mt-8 flex justify-center gap-4">
+               <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/login">Admin Dashboard</Link>
+              </Button>
               <Button asChild size="lg" variant="secondary">
                 <Link href="/login">Login / Register</Link>
               </Button>
@@ -54,5 +57,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
