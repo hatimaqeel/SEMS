@@ -134,7 +134,9 @@ const UserTable = ({
                     </TableCell>
                     <TableCell>{user.dept}</TableCell>
                     <TableCell>
-                    <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
+                      <Badge variant={roleVariant(isSuperAdmin ? 'super-admin' : user.role)}>
+                        {isSuperAdmin ? 'Super Admin' : user.role}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                         <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
@@ -402,6 +404,8 @@ export default function UsersPage() {
 
   const roleVariant = (role: string) => {
     switch (role) {
+      case 'super-admin':
+        return 'destructive';
       case 'admin':
         return 'default';
       case 'coordinator':
@@ -626,5 +630,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
