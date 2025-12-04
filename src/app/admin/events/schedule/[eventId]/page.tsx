@@ -194,18 +194,6 @@ export default function SchedulePage() {
         setIsGenerating(false);
         return;
     }
-
-    // --- START OF NEW LOGIC ---
-    if (event.settings.format === 'knockout') {
-      if (approvedTeams.length % 2 !== 0) {
-        setGenerationError(
-          'Knockout tournaments require an even number of teams (2, 4, 8, 16, …). Please add or remove teams to create an even number, or choose the Round-Robin format instead.'
-        );
-        setIsGenerating(false);
-        return;
-      }
-    }
-    // --- END OF NEW LOGIC ---
     
     // --- START OF MODIFIED LOGIC ---
 
@@ -536,5 +524,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
