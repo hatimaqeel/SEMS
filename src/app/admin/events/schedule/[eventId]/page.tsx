@@ -183,6 +183,22 @@ export default function SchedulePage() {
     setGenerationError(null);
 
     const approvedTeams = event.teams.filter(team => team.status === 'approved');
+    
+    if (event.settings.format === 'knockout') {
+      const isPowerOfTwo = (n: number) => {
+        if (n <= 1) return false; // 2, 4, 8...
+        return (n & (n - 1)) === 0;
+      };
+
+      if (!isPowerOfTwo(approvedTeams.length)) {
+        setGenerationError(
+          'Knockout tournaments require a valid bracket size (2, 4, 8, 16, …).\nThe current number of teams cannot form a knockout bracket.\nPlease adjust the teams or choose the Round-Robin format instead.'
+        );
+        setIsGenerating(false);
+        return;
+      }
+    }
+    
     if (approvedTeams.length < 2) {
       setGenerationError('Scheduling requires at least two approved teams.');
       setIsGenerating(false);
@@ -265,7 +281,7 @@ export default function SchedulePage() {
         }, {} as Record<string, {defaultDurationMinutes: number}>);
 
         const matchesToSchedule = pairs.map((pair, index) => ({
-            matchId: `m${Date.now() + index}`,
+            matchId: newBracket.rounds[0].matches[index],
             ...pair,
             sportType: event.sportType,
             round: 1,
@@ -280,7 +296,7 @@ export default function SchedulePage() {
           teamPreferences,
           timeConstraints: {
             earliestStartTime: new Date(new Date(event.startDate).setHours(8, 0, 0, 0)).toISOString(),
-            latestEndTime: new Date(latestEndDate).toISOString(),
+            latestEndTime: new Date(latestEndDate.setHours(18, 0, 0, 0)).toISOString(),
         },
           matches: matchesToSchedule,
           sports: sportsData,
@@ -289,7 +305,7 @@ export default function SchedulePage() {
       const { optimizedMatches } = result;
 
       if (!optimizedMatches || optimizedMatches.length === 0) {
-        setGenerationError('AI failed to generate a schedule. Please check event constraints or try again.');
+        setGenerationError('AI Scheduling Failed: The AI could not find a valid schedule with the given constraints. This may be due to not enough venues or time slots available to respect round-based scheduling. Please check your event duration and venue availability.');
         setIsGenerating(false);
         return;
       }
@@ -297,7 +313,6 @@ export default function SchedulePage() {
       const allMatchesForEvent: Match[] = newBracket.rounds.flatMap(round => 
         round.matches.map(matchId => {
             const scheduledMatch = optimizedMatches.find(om => om.matchId === matchId);
-            const pair = pairs.find(p => `m${Date.now() + pairs.indexOf(p)}` === matchId); // This logic is flawed, needs better id mapping
             
             if (scheduledMatch) {
                 const originalMatch = matchesToSchedule.find(m => m.matchId === matchId);
@@ -312,8 +327,8 @@ export default function SchedulePage() {
             const roundNumber = round.roundIndex;
             return {
                 matchId: matchId,
-                teamAId: roundNumber === 1 ? (pair?.teamAId || '') : 'TBD',
-                teamBId: roundNumber === 1 ? (pair?.teamBId || '') : 'TBD',
+                teamAId: 'TBD',
+                teamBId: 'TBD',
                 sportType: event.sportType,
                 venueId: '',
                 startTime: '',
@@ -328,8 +343,11 @@ export default function SchedulePage() {
       const finalMatches = allMatchesForEvent.map(match => {
           const optimized = optimizedMatches.find(opt => opt.matchId === match.matchId);
           if (optimized) {
+              const originalMatch = matchesToSchedule.find(m => m.matchId === optimized.matchId);
               return {
                   ...match,
+                  teamAId: originalMatch?.teamAId || 'TBD',
+                  teamBId: originalMatch?.teamBId || 'TBD',
                   venueId: optimized.venueId,
                   startTime: optimized.startTime,
                   endTime: optimized.endTime,
@@ -520,3 +538,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
