@@ -3,8 +3,8 @@
     {
       "id": "hero",
       "description": "A wide-angle shot of a university sports stadium at dusk.",
-      "imageUrl": "https://images.unsplash.com/photo-1690752795293-39ab93ac18a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzdGFkaXVtJTIwc3BvcnRzfGVufDB8fHx8MTc2MjEwODgyMXww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "stadium sports"
+      "imageUrl": "https://storage.googleapis.com/project-1-4529446714-2e912b7a/public/f2b0a9697960309995c6c04f98dfa732.png",
+      "imageHint": "university campus"
     },
     {
       "id": "university",
