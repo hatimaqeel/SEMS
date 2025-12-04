@@ -289,15 +289,21 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
 
-        const profileData = {
+        const profileData: any = {
           displayName: name,
           email: email,
           role,
           dept: department,
-          registrationNumber: role === 'student' ? regNumber : undefined,
-          facultyId: role === 'admin' ? facultyId : undefined,
-          gender: role === 'student' ? gender : undefined,
         };
+
+        if (role === 'student') {
+            profileData.registrationNumber = regNumber;
+            profileData.gender = gender;
+        }
+
+        if (role === 'admin') {
+            profileData.facultyId = facultyId;
+        }
 
         const userProfileRef = doc(firestore, 'userProfiles', newUser.uid);
         setDocumentNonBlocking(userProfileRef, profileData, {});
