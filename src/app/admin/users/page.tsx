@@ -6,10 +6,8 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import {
   collection,
   doc,
-  setDoc,
   updateDoc,
   deleteDoc,
-  getDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, sendEmailVerification, signOut } from 'firebase/auth';
 import type { User, Department } from '@/lib/types';
@@ -67,6 +65,8 @@ import { firebaseConfig } from '@/firebase/config';
 import { initializeApp } from 'firebase/app';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
+const SUPER_ADMIN_EMAIL = 'sems.cust@outlook.com';
+
 const UserTable = ({ 
     users, 
     isLoading, 
@@ -107,75 +107,78 @@ const UserTable = ({
         </TableRow>
       )}
       {users && users.length > 0 ? (
-        users.map((user) => (
-          <TableRow key={user.userId}>
-            <TableCell className="font-medium">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  {user.photoURL && (
-                    <AvatarImage
-                      src={user.photoURL}
-                      alt={user.displayName}
-                    />
-                  )}
-                  <AvatarFallback>
-                    {user.displayName.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid gap-0.5">
-                  <span className="font-medium">{user.displayName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {user.email}
-                  </span>
-                </div>
-              </div>
-            </TableCell>
-            <TableCell>{user.dept}</TableCell>
-            <TableCell>
-              <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
-            </TableCell>
-             <TableCell>
-                <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
-            </TableCell>
-            <TableCell className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onEdit(user)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit User
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onChangeRole(user)}>
-                    <UserCog className="mr-2 h-4 w-4" />
-                    Change Role
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {user.status === 'deactivated' ? (
-                     <DropdownMenuItem onClick={() => onActivate(user)}>
-                        <UserCheck className="mr-2 h-4 w-4" />
-                        Activate User
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => onDeactivate(user)}>
-                        <UserX className="mr-2 h-4 w-4" />
-                        Deactivate User
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem className="text-destructive" onClick={() => onDelete(user)}>
-                     <Trash className="mr-2 h-4 w-4" />
-                    Delete User
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
-          </TableRow>
-        ))
+        users.map((user) => {
+            const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+            return (
+                <TableRow key={user.userId}>
+                    <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                        {user.photoURL && (
+                            <AvatarImage
+                            src={user.photoURL}
+                            alt={user.displayName}
+                            />
+                        )}
+                        <AvatarFallback>
+                            {user.displayName.charAt(0)}
+                        </AvatarFallback>
+                        </Avatar>
+                        <div className="grid gap-0.5">
+                        <span className="font-medium">{user.displayName}</span>
+                        <span className="text-xs text-muted-foreground">
+                            {user.email}
+                        </span>
+                        </div>
+                    </div>
+                    </TableCell>
+                    <TableCell>{user.dept}</TableCell>
+                    <TableCell>
+                    <Badge variant={roleVariant(user.role)}>{user.role}</Badge>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>{user.status || 'active'}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isSuperAdmin}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => onEdit(user)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onChangeRole(user)} disabled={isSuperAdmin}>
+                            <UserCog className="mr-2 h-4 w-4" />
+                            Change Role
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {user.status === 'deactivated' ? (
+                            <DropdownMenuItem onClick={() => onActivate(user)}>
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Activate User
+                            </DropdownMenuItem>
+                        ) : (
+                            <DropdownMenuItem onClick={() => onDeactivate(user)}>
+                                <UserX className="mr-2 h-4 w-4" />
+                                Deactivate User
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(user)} disabled={isSuperAdmin}>
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete User
+                        </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    </TableCell>
+                </TableRow>
+            )
+        })
       ) : !isLoading && (
         <TableRow>
             <TableCell colSpan={5} className="text-center h-24">
@@ -191,10 +194,7 @@ const UserTable = ({
 export default function UsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { user: currentUser, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
-
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -213,7 +213,6 @@ export default function UsersPage() {
   const [department, setDepartment] = useState('');
   const [regNumber, setRegNumber] = useState('');
   const [gender, setGender] = useState('');
-  const [secretKey, setSecretKey] = useState('');
   
   // Edit state
   const [editName, setEditName] = useState('');
@@ -221,25 +220,7 @@ export default function UsersPage() {
   const [editReg, setEditReg] = useState('');
   const [editRole, setEditRole] = useState<User['role']>('student');
 
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (currentUser) {
-        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          setIsAdmin(true);
-        }
-      }
-      setIsCheckingAdmin(false);
-    };
-    if (!isUserLoading) {
-      checkAdmin();
-    }
-  }, [currentUser, isUserLoading, firestore]);
-
-  const usersRef = useMemoFirebase(() => {
-    if (isCheckingAdmin || !isAdmin) return null;
-    return collection(firestore, 'users');
-  }, [firestore, isAdmin, isCheckingAdmin]);
+  const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users, isLoading } = useCollection<User>(usersRef);
   
   const departmentsRef = useMemoFirebase(() => collection(firestore, 'departments'), [firestore]);
@@ -255,7 +236,6 @@ export default function UsersPage() {
     setDepartment('');
     setRegNumber('');
     setGender('');
-    setSecretKey('');
   };
   
   const handleAddUser = () => {
@@ -267,32 +247,6 @@ export default function UsersPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const userRole = role;
-
-    if (userRole === 'admin') {
-      try {
-        const settingsRef = doc(firestore, 'settings', 'app');
-        const settingsSnap = await getDoc(settingsRef);
-        if (!settingsSnap.exists() || settingsSnap.data()?.secretKey !== secretKey) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Invalid secret key.",
-            });
-            setIsSubmitting(false);
-            return;
-        }
-      } catch (error) {
-         toast({
-            variant: "destructive",
-            title: "Error validating key",
-            description: "Could not verify the secret key. Please try again.",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-    }
-    
     const tempApp = initializeApp(firebaseConfig, `temp-app-${new Date().getTime()}`);
     const tempAuth = getAuth(tempApp);
 
@@ -300,14 +254,13 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
 
-        // Store profile details in a temporary collection
         const profileData = {
           displayName: name,
           email: email,
-          role: userRole,
+          role,
           dept: department,
-          registrationNumber: regNumber,
-          gender: gender,
+          registrationNumber: role === 'student' ? regNumber : '',
+          gender: role === 'student' ? gender : '',
         };
 
         const userProfileRef = doc(firestore, 'userProfiles', newUser.uid);
@@ -363,6 +316,10 @@ export default function UsersPage() {
   };
 
   const handleChangeRoleClick = (user: User) => {
+    if (user.email === SUPER_ADMIN_EMAIL) {
+        toast({ variant: 'destructive', title: 'Action Not Allowed', description: 'The Super Admin role cannot be changed.'});
+        return;
+    }
     setSelectedUser(user);
     setEditRole(user.role);
     setIsChangeRoleOpen(true);
@@ -386,6 +343,10 @@ export default function UsersPage() {
   };
 
   const handleDeactivateClick = async (user: User) => {
+    if (user.email === SUPER_ADMIN_EMAIL) {
+        toast({ variant: 'destructive', title: 'Action Not Allowed', description: 'The Super Admin cannot be deactivated.'});
+        return;
+    }
     const userDocRef = doc(firestore, 'users', user.userId);
     try {
         await updateDoc(userDocRef, { status: 'deactivated' });
@@ -406,6 +367,10 @@ export default function UsersPage() {
   };
 
   const handleDeleteClick = (user: User) => {
+    if (user.email === SUPER_ADMIN_EMAIL) {
+        toast({ variant: 'destructive', title: 'Action Not Allowed', description: 'The Super Admin cannot be deleted.'});
+        return;
+    }
     setSelectedUser(user);
     setIsDeleteConfirmOpen(true);
   };
@@ -419,7 +384,7 @@ export default function UsersPage() {
 
         toast({
             title: 'User Deleted',
-            description: `${selectedUser.displayName}'s data has been deleted from the database.`,
+            description: `${selectedUser.displayName}'s data has been deleted from the database. Note: This does not delete their authentication record.`,
         });
     } catch (error: any) {
         console.error("Error deleting user:", error);
@@ -472,7 +437,7 @@ export default function UsersPage() {
             <TabsContent value="students" className="mt-0">
               <UserTable 
                 users={students} 
-                isLoading={isLoading || isUserLoading || isCheckingAdmin} 
+                isLoading={isLoading} 
                 roleVariant={roleVariant}
                 onEdit={handleEditUserClick}
                 onChangeRole={handleChangeRoleClick}
@@ -484,7 +449,7 @@ export default function UsersPage() {
             <TabsContent value="administrators" className="mt-0">
                <UserTable 
                 users={admins} 
-                isLoading={isLoading || isUserLoading || isCheckingAdmin} 
+                isLoading={isLoading} 
                 roleVariant={roleVariant} 
                 onEdit={handleEditUserClick}
                 onChangeRole={handleChangeRoleClick}
@@ -575,10 +540,6 @@ export default function UsersPage() {
                         <Label htmlFor="admin-password">Password</Label>
                         <Input id="admin-password" type="password" required value={password} onChange={e => setPassword(e.target.value)} disabled={isSubmitting} />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="secret-key">Secret Key</Label>
-                        <Input id="secret-key" type="password" placeholder="Enter organization secret" required value={secretKey} onChange={e => setSecretKey(e.target.value)} disabled={isSubmitting} />
-                    </div>
                  </TabsContent>
                  <Button type="submit" className="w-full mt-4" disabled={isSubmitting}>
                     {isSubmitting ? 'Creating Account...' : `Create ${role} account`}
@@ -665,3 +626,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    

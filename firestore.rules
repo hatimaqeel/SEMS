@@ -151,8 +151,8 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId) || isAdmin();
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if (isOwner(userId) || isAdmin()) && !isRoleChangeOnSuperAdmin(userId);
+      allow delete: if isAdmin() && !isSuperAdmin(userId);
     }
     
     /**
@@ -180,16 +180,6 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-     /**
-     * @description Grants admin-only access to application settings.
-     * @path /settings/app
-     * @allow (read, write): Only admins can access settings.
-     * @principle Admin-only configuration management.
-     */
-    match /settings/app {
-      allow read, write: if isAdmin();
-    }
-
     // --- Helper functions ---
     function isSignedIn() {
       return request.auth != null;
@@ -207,8 +197,20 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isSuperAdmin(userId) {
+      let userData = get(/databases/$(database)/documents/users/$(userId)).data;
+      return userData.email == 'sems.cust@outlook.com';
+    }
+
+    function isRoleChangeOnSuperAdmin(userId) {
+        // Prevent changing the role of the super admin
+        return isSuperAdmin(userId) && request.resource.data.role != resource.data.role;
+    }
+
     function isAdmin() {
       return isSignedIn() && getUserData().role == 'admin';
     }
   }
 }
+
+    

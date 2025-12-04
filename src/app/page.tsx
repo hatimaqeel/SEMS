@@ -2,28 +2,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/common/Header";
 import { Logo } from "@/components/common/Logo";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { events } from "@/lib/placeholder-data";
-import { Calendar, MapPin } from "lucide-react";
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find(p => p.id === 'hero');
-  const upcomingEvents = events;
-
-  const getSportImage = (sportType: string) => {
-    const sportImage = PlaceHolderImages.find(p => p.id === sportType.toLowerCase());
-    return sportImage || PlaceHolderImages.find(p => p.id === 'basketball');
-  }
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1">
-        <section className="relative w-full h-[80vh] md:h-[calc(100vh-56px)] flex items-center justify-center text-center text-white">
+        <section className="relative w-full h-[calc(100vh-56px)] flex items-center justify-center text-center text-white">
           {heroImage && (
             <Image
               src={heroImage.imageUrl}
@@ -43,9 +33,6 @@ export default function Home() {
               The ultimate sports event management system for universities. Streamline your tournaments from start to finish.
             </p>
             <div className="mt-8 flex justify-center gap-4">
-              <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Link href="/admin/dashboard">Admin Dashboard</Link>
-              </Button>
               <Button asChild size="lg" variant="secondary">
                 <Link href="/login">Login / Register</Link>
               </Button>
@@ -67,3 +54,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
