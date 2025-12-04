@@ -36,8 +36,8 @@ export default function Home() {
                <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Link href="/login?type=admin">Admin Dashboard</Link>
               </Button>
-              <Button asChild size="lg" variant="secondary">
-                <Link href="/login">Login / Register</Link>
+              <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/login">Student Dashboard</Link>
               </Button>
             </div>
           </div>
