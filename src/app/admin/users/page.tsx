@@ -8,6 +8,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  getDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, sendEmailVerification, signOut } from 'firebase/auth';
 import type { User, Department } from '@/lib/types';
@@ -75,7 +76,8 @@ const UserTable = ({
     onChangeRole, 
     onDeactivate,
     onActivate,
-    onDelete 
+    onDelete,
+    currentUserRole,
 }: { 
     users: User[] | undefined, 
     isLoading: boolean, 
@@ -85,6 +87,7 @@ const UserTable = ({
     onDeactivate: (user: User) => void,
     onActivate: (user: User) => void,
     onDelete: (user: User) => void,
+    currentUserRole: string | null,
 }) => (
     <Table>
     <TableHeader>
@@ -109,6 +112,12 @@ const UserTable = ({
       {users && users.length > 0 ? (
         users.map((user) => {
             const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+            const isAdmin = user.role === 'admin';
+            const isTargetAdmin = isSuperAdmin || isAdmin;
+            const canManageAdmins = currentUserRole === 'super-admin';
+            const canManageStudents = currentUserRole === 'super-admin' || currentUserRole === 'admin';
+            const disableActions = isSuperAdmin || (isTargetAdmin && !canManageAdmins) || (user.role === 'student' && !canManageStudents);
+
             return (
                 <TableRow key={user.userId}>
                     <TableCell className="font-medium">
@@ -144,34 +153,34 @@ const UserTable = ({
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isSuperAdmin}>
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={disableActions}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => onEdit(user)}>
+                        <DropdownMenuItem onClick={() => onEdit(user)} disabled={disableActions}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit User
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onChangeRole(user)} disabled={isSuperAdmin}>
+                        <DropdownMenuItem onClick={() => onChangeRole(user)} disabled={disableActions}>
                             <UserCog className="mr-2 h-4 w-4" />
                             Change Role
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {user.status === 'deactivated' ? (
-                            <DropdownMenuItem onClick={() => onActivate(user)}>
+                            <DropdownMenuItem onClick={() => onActivate(user)} disabled={disableActions}>
                                 <UserCheck className="mr-2 h-4 w-4" />
                                 Activate User
                             </DropdownMenuItem>
                         ) : (
-                            <DropdownMenuItem onClick={() => onDeactivate(user)}>
+                            <DropdownMenuItem onClick={() => onDeactivate(user)} disabled={disableActions}>
                                 <UserX className="mr-2 h-4 w-4" />
                                 Deactivate User
                             </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(user)} disabled={isSuperAdmin}>
+                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(user)} disabled={disableActions}>
                             <Trash className="mr-2 h-4 w-4" />
                             Delete User
                         </DropdownMenuItem>
@@ -196,6 +205,8 @@ const UserTable = ({
 export default function UsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user: currentUser } = useUser();
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -222,6 +233,24 @@ export default function UsersPage() {
   const [editReg, setEditReg] = useState('');
   const [editRole, setEditRole] = useState<User['role']>('student');
 
+  useEffect(() => {
+    const fetchUserRole = async () => {
+        if(currentUser && firestore) {
+            const userDocRef = doc(firestore, 'users', currentUser.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                 const userData = userDoc.data();
+                 if(userData.email === SUPER_ADMIN_EMAIL) {
+                    setCurrentUserRole('super-admin');
+                 } else {
+                    setCurrentUserRole(userData.role);
+                 }
+            }
+        }
+    };
+    fetchUserRole();
+  }, [currentUser, firestore]);
+
   const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users, isLoading } = useCollection<User>(usersRef);
   
@@ -229,7 +258,7 @@ export default function UsersPage() {
   const { data: departments, isLoading: isLoadingDepts } = useCollection<Department>(departmentsRef);
 
   const students = users?.filter(user => user.role === 'student');
-  const admins = users?.filter(user => user.role === 'admin' || user.role === 'coordinator' || user.role === 'referee');
+  const admins = users?.filter(user => user.email === SUPER_ADMIN_EMAIL || user.role === 'admin' || user.role === 'coordinator' || user.role === 'referee');
 
   const clearForm = () => {
     setName('');
@@ -423,10 +452,12 @@ export default function UsersPage() {
         title="Manage Users"
         description="View and manage all users with access to the system."
       >
-        <Button onClick={handleAddUser}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add New User
-        </Button>
+        {currentUserRole === 'super-admin' && (
+            <Button onClick={handleAddUser}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add New User
+            </Button>
+        )}
       </PageHeader>
 
       <Card>
@@ -448,6 +479,7 @@ export default function UsersPage() {
                 onActivate={handleActivateClick}
                 onDeactivate={handleDeactivateClick}
                 onDelete={handleDeleteClick}
+                currentUserRole={currentUserRole}
                 />
             </TabsContent>
             <TabsContent value="administrators" className="mt-0">
@@ -460,6 +492,7 @@ export default function UsersPage() {
                 onActivate={handleActivateClick}
                 onDeactivate={handleDeactivateClick}
                 onDelete={handleDeleteClick}
+                currentUserRole={currentUserRole}
                 />
             </TabsContent>
           </Tabs>
@@ -520,7 +553,7 @@ export default function UsersPage() {
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="student-email">Email</Label>
-                        <Input id="student-email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} disabled={isSubmitting} />
+                        <Input id="student-email" type="email" placeholder="student@example.com" required value={email} onChange={e => setEmail(e.target.value)} disabled={isSubmitting} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="student-password">Password</Label>
@@ -630,3 +663,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    

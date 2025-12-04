@@ -16,171 +16,20 @@
  * - /brackets/{eventId}: Tournament bracket data for an event.
  *
  * Key Security Decisions:
- * - Users can read and write their own profile data.
- * - Admins can create, update, and delete sports, venues, departments, events, and brackets.
- * - All sports, venues, departments, and events are publicly readable.
- * - Teams and Matches are scoped to specific events. Creation, modification, and deletion of teams and matches is not supported and therefore denied.
+ * - Super Admin (sems.cust@outlook.com) has full CRUD access to all data.
+ * - Admins can manage sports, venues, departments, events, and student user accounts. They cannot manage other admin accounts.
+ * - Students can read public data and manage their own profiles.
  *
  * Access Control Patterns:
- * - Sports: Public read, admin write.
- * - Venues: Public read, admin write.
- * - Departments: Public read, admin write.
- * - Events: Public read, admin write. Students can create their own join request.
- * - Brackets: Public read, admin write.
- * - Teams: Event-scoped access.
- * - Matches: Event-scoped access.
- * - Users: Owner-only access for read/write. Admin can perform any action on any user.
- * - UserProfiles: Admin can create. Owner can read and delete.
- * - Logs: Event-scoped access.
+ * - Sports, Venues, Departments, Events, Brackets: Public read, admin/super-admin write.
+ * - Teams, Matches: Event-scoped access.
+ * - Users: Owner-only access for read/write. Admins can manage students. Super Admin can manage anyone except themselves.
+ * - UserProfiles: Admin/Super Admin can create. Owner can read and delete.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Grants public read access to sports data. Write access is for admins.
-     * @path /sports/{sportId}
-     * @allow (get, list): Any user can read sport data.
-     * @allow (create, update, delete): Admins can manage sports data.
-     * @principle Public read, admin write.
-     */
-    match /sports/{sportId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Grants public read access to venue data. Write access is for admins.
-     * @path /venues/{venueId}
-     * @allow (get, list): Any user can read venue data.
-     * @allow (create, update, delete): Admins can manage venue data.
-     * @principle Public read, admin write.
-     */
-    match /venues/{venueId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Grants public read access to department data. Write access is for admins.
-     * @path /departments/{departmentId}
-     * @allow (get, list): if true;
-     * @allow (create, update, delete): if isAdmin();
-     */
-    match /departments/{departmentId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Grants public read access to event data. Admins have full write access.
-     * @path /events/{eventId}
-     * @allow (get, list): Any user can read event data.
-     * @allow (create, update, delete): Admins can manage events.
-     * @principle Public read, admin write.
-     */
-    match /events/{eventId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-
-      /**
-       * @description Handles join requests for an event.
-       * @path /events/{eventId}/joinRequests/{userId}
-       * @allow (list): Admins can read all join requests.
-       * @allow (get): An admin can read or a user can read their own request.
-       * @allow (create): A signed-in user can create a join request for themselves.
-       * @allow (update): An admin can update the status of any join request.
-       * @principle Segregated writes, admin management.
-       */
-      match /joinRequests/{userId} {
-        allow list: if isAdmin();
-        allow get: if isAdmin() || isOwner(userId);
-        allow create: if isOwner(userId);
-        allow update: if isAdmin();
-        allow delete: if false;
-      }
-    }
-
-    /**
-     * @description Grants read and write access to a team only if the user is the owner.
-     * @path /events/{eventId}/teams/{teamId}
-     * @allow (get, list): Any user can read team data.
-     * @deny (create, update, delete): No user can create, update, or delete team data.
-     * @principle Owner-only access for writes; public read.
-     */
-    match /events/{eventId}/teams/{teamId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Grants read and write access to a match only if the user is the owner.
-     * @path /events/{eventId}/matches/{matchId}
-     * @allow (get, list): Any user can read match data.
-     * @deny (create, update, delete): No user can create, update, or delete match data.
-     * @principle Owner-only access for writes; public read.
-     */
-    match /events/{eventId}/matches/{matchId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    
-    /**
-     * @description Grants public read access to bracket data. Write access is for admins.
-     * @path /brackets/{eventId}
-     * @allow (get, list): Any user can read bracket data.
-     * @allow (create, update, delete): Admins can manage brackets.
-     * @principle Public read, admin write.
-     */
-    match /brackets/{eventId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Grants owner-only access to user profile data, and full access for admins.
-     * @path /users/{userId}
-     * @allow (get): User can read their own profile, or an admin can read any profile.
-     * @allow (list): Admins can list all users.
-     * @allow (create): A new user can create their own profile, or an admin can create any profile.
-     * @allow (update): User can update their own profile, or an admin can update any profile.
-     * @allow (delete): An admin can delete any user profile.
-     * @principle Enforces document ownership and admin full access.
-     */
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId) || isAdmin();
-      allow update: if (isOwner(userId) || isAdmin()) && !isRoleChangeOnSuperAdmin(userId);
-      allow delete: if isAdmin() && !isSuperAdmin(userId);
-    }
-    
-    /**
-     * @description Manages temporary user profiles.
-     * @path /userProfiles/{userId}
-     * @allow create: Any authenticated user can create their own temporary profile.
-     * @allow get, delete: Owner can read and delete their own temporary profile.
-     * @allow list, update: Denied for all.
-     */
-    match /userProfiles/{userId} {
-      allow create: if isSignedIn();
-      allow get, delete: if isOwner(userId);
-      allow list, update: if false;
-    }
-
-    /**
-     * @description Grants read and write access to a log entry only if the user is the owner.
-     * @path /events/{eventId}/logs/{logId}
-     * @allow (get, list): Any user can read log data.
-     * @deny (create, update, delete): No user can create, update, or delete log data.
-     * @principle Owner-only access for writes; public read.
-     */
-    match /events/{eventId}/logs/{logId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    // --- Helper functions ---
     function isSignedIn() {
       return request.auth != null;
     }
@@ -189,26 +38,95 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-        return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getRequestingUserData() {
+        return getUserData(request.auth.uid);
     }
 
     function isSuperAdmin(userId) {
-      let userData = get(/databases/$(database)/documents/users/$(userId)).data;
-      return userData.email == 'sems.cust@outlook.com';
+      return getUserData(userId).email == 'sems.cust@outlook.com';
+    }
+    
+    function isRequestingUserSuperAdmin() {
+        return isSignedIn() && getRequestingUserData().email == 'sems.cust@outlook.com';
+    }
+
+    function isRequestingUserAdmin() {
+      return isSignedIn() && getRequestingUserData().role == 'admin';
     }
 
     function isRoleChangeOnSuperAdmin(userId) {
-        // Prevent changing the role of the super admin
         return isSuperAdmin(userId) && request.resource.data.role != resource.data.role;
     }
 
-    function isAdmin() {
-      return isSignedIn() && getUserData().role == 'admin';
+    match /sports/{sportId} {
+      allow get, list: if true;
+      allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+    }
+
+    match /venues/{venueId} {
+      allow get, list: if true;
+      allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+    }
+
+    match /departments/{departmentId} {
+      allow get, list: if true;
+      allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+    }
+
+    match /events/{eventId} {
+      allow get, list: if true;
+      allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+
+      match /joinRequests/{userId} {
+        allow list: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+        allow get: if isRequestingUserAdmin() || isRequestingUserSuperAdmin() || isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+        allow delete: if false;
+      }
+      
+      match /teams/{teamId} {
+        allow get, list: if true;
+        allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+      }
+
+      match /matches/{matchId} {
+        allow get, list: if true;
+        allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+      }
+
+       match /logs/{logId} {
+        allow get, list: if true;
+        allow create, update, delete: if false;
+       }
+    }
+
+    match /brackets/{eventId} {
+      allow get, list: if true;
+      allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+    }
+
+    match /users/{userId} {
+      // Super admin can read anyone. Admins can read students. Users can read themselves.
+      allow get: if isRequestingUserSuperAdmin() || (isRequestingUserAdmin() && getUserData(userId).role == 'student') || isOwner(userId);
+      // Only super admin and admins can list users. (Further filtering on client-side)
+      allow list: if isRequestingUserSuperAdmin() || isRequestingUserAdmin();
+      // Super admin can create anyone. Admins can create students. Users can create their own doc.
+      allow create: if isRequestingUserSuperAdmin() || (isRequestingUserAdmin() && request.resource.data.role == 'student') || isOwner(userId);
+      // Super admin can update anyone but themselves. Admins can only update students. Owners can update themselves.
+      allow update: if (isRequestingUserSuperAdmin() && !isSuperAdmin(userId)) || (isRequestingUserAdmin() && resource.data.role == 'student') || isOwner(userId);
+      // Super admin can delete anyone but themselves. Admins can only delete students.
+      allow delete: if (isRequestingUserSuperAdmin() && !isSuperAdmin(userId)) || (isRequestingUserAdmin() && resource.data.role == 'student');
+    }
+    
+    match /userProfiles/{userId} {
+      allow create: if isSignedIn();
+      allow get, delete: if isOwner(userId);
+      allow list, update: if false;
     }
   }
 }
