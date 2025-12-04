@@ -150,11 +150,11 @@ export default function LoginPage() {
           <Logo />
         </div>
         <CardTitle className="text-2xl">Login to your account</CardTitle>
-        {!isAdminLogin && (
-            <CardDescription>
-            Enter your email below to access your dashboard
-            </CardDescription>
-        )}
+        <CardDescription>
+          {isAdminLogin
+            ? 'Enter your administrator credentials to access the dashboard.'
+            : 'Enter your email below to access your dashboard'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin}>
