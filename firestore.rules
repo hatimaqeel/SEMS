@@ -14,6 +14,7 @@
  * - /userProfiles/{userId}: Temporary profile data for new users.
  * - /events/{eventId}/logs/{logId}: Log entries for events.
  * - /brackets/{eventId}: Tournament bracket data for an event.
+ * - /settings/{settingId}: Global application settings.
  *
  * Key Security Decisions:
  * - Super Admin (sems.cust@outlook.com) has full CRUD access to all data.
@@ -25,6 +26,7 @@
  * - Teams, Matches: Event-scoped access.
  * - Users: Owner-only access for read/write. Admins can manage students. Super Admin can manage anyone except themselves.
  * - UserProfiles: Admin/Super Admin can create. Owner can read and delete.
+ * - Settings: Admin/Super-Admin can read. Super-Admin can write.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -76,6 +78,11 @@ service cloud.firestore {
       allow get, list: if true;
       allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
     }
+    
+    match /settings/{settingId} {
+      allow get, list: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
+      allow create, update, delete: if isRequestingUserSuperAdmin();
+    }
 
     match /events/{eventId} {
       allow get, list: if true;
@@ -118,7 +125,7 @@ service cloud.firestore {
       // Super admin can create anyone. Admins can create students. Users can create their own doc.
       allow create: if isRequestingUserSuperAdmin() || (isRequestingUserAdmin() && request.resource.data.role == 'student') || isOwner(userId);
       // Super admin can update anyone but themselves. Admins can only update students. Owners can update themselves.
-      allow update: if (isRequestingUserSuperAdmin() && !isSuperAdmin(userId)) || (isRequestingUserAdmin() && resource.data.role == 'student') || isOwner(userId);
+      allow update: if (isRequestingUserSuperAdmin() && !isSuperAdmin(userId)) || (isRequestingUserAdmin() && resource.data.role == 'student' && request.resource.data.role == 'student') || isOwner(userId);
       // Super admin can delete anyone but themselves. Admins can only delete students.
       allow delete: if (isRequestingUserSuperAdmin() && !isSuperAdmin(userId)) || (isRequestingUserAdmin() && resource.data.role == 'student');
     }
@@ -130,5 +137,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
