@@ -19,6 +19,7 @@ const OptimizeScheduleWithAIInputSchema = z.object({
     endTime: z.string().describe('The end time of the availability slot (ISO format).'),
   }))).describe('A map of venue IDs to available time slots.'),
   teamPreferences: z.record(z.string(), z.array(z.string())).describe('A map of team IDs to preferred venue IDs.'),
+  teams: z.array(z.string()).describe('An array of all team IDs participating in the event.'),
   timeConstraints: z.object({
     earliestStartTime: z.string().describe('The earliest start time for any match (ISO format).'),
     latestEndTime: z.string().describe('The latest end time for any match (ISO format).'),
@@ -60,24 +61,35 @@ const prompt = ai.definePrompt({
   name: 'optimizeScheduleWithAIPrompt',
   input: {schema: OptimizeScheduleWithAIInputSchema},
   output: {schema: OptimizeScheduleWithAIOutputSchema},
-  prompt: `You are an AI scheduling assistant for university sports events. Your task is to create a valid, conflict-free match schedule.
+  prompt: `You are an AI scheduling assistant for university sports events. Your task is to create a valid, conflict-free match schedule based on the provided data.
 
-Here are the constraints you must follow:
-- **No Overlapping Matches**: Two matches cannot be scheduled in the same venue at the same time.
-- **Time Constraints**: All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}). Do not schedule matches outside of the provided venue availability.
-- **Match Duration**: Use the default duration for the sport to calculate the end time of each match.
-- **Venue Availability**: Respect the available time slots for each venue.
-- **Team Preferences**: Consider team venue preferences as a guideline, but ensuring a valid schedule is more important.
-- **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input.
+**GLOBAL RULES (Apply to all formats):**
+1.  **No Overlapping Matches**: Two matches cannot be scheduled in the same venue at the same time.
+2.  **Time Constraints**: All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}). Do not schedule matches outside of the provided venue availability.
+3.  **Match Duration**: Use the default duration for the sport to calculate the end time of each match.
+4.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input.
+
+**FORMAT-SPECIFIC RULES:**
+
+**A. If this is a Round-Robin Tournament:**
+1.  **One Match Per Day**: A team cannot play more than one match on the same calendar day. Check all matches to ensure this rule is met for every team.
+2.  **Fair Distribution**: Distribute matches evenly across the available days and venues.
+
+**B. If this is a Knockout Tournament:**
+1.  **Round Progression**: All matches from a previous round (e.g., Round 1) must be scheduled to finish before any match from the next round (e.g., Round 2) can begin.
+2.  **Time Between Rounds**: Ensure there is a reasonable gap between rounds. Ideally, schedule subsequent rounds on different days.
+3.  **TBD Teams**: Some input matches may have "TBD" (To Be Determined) as team IDs. These are valid placeholders for future rounds and must be scheduled.
+
+**Failure Condition:**
+If you cannot generate a valid schedule that respects all of these rules (e.g., not enough time slots, venue conflicts, team daily match limit), you MUST return an empty 'optimizedMatches' array and provide a clear 'reasoning' explaining exactly which constraint could not be met.
 
 **INPUT DATA:**
-
 Event ID: {{{eventId}}}
-
+All Teams: {{#each teams}} {{this}}, {{/each}}
 Venue Availability:
 {{#each venueAvailability}}
   - Venue ID: {{@key}}
-  - Availability: {{#each this}} Start: {{{startTime}}}, End: {{{endTime}}} {{/each}}
+    - Availability: {{#each this}} Start: {{{startTime}}}, End: {{{endTime}}} {{/each}}
 {{/each}}
 
 Matches to Schedule:
@@ -92,7 +104,7 @@ Sports Data:
 
 ---
 **YOUR TASK:**
-Based on the rules above, generate the complete, conflict-free schedule. Provide a detailed reasoning for your choices. If a valid schedule is impossible, explain why and return an empty optimizedMatches array.
+Based on all the rules above, generate the complete, conflict-free schedule. Provide a detailed reasoning for your choices.
   `,
 });
 

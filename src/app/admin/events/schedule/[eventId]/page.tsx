@@ -185,18 +185,14 @@ export default function SchedulePage() {
     const approvedTeams = event.teams.filter(team => team.status === 'approved');
     
     if (event.settings.format === 'knockout') {
-      const isPowerOfTwo = (n: number) => {
-        if (n <= 1) return false; // 2, 4, 8...
-        return (n & (n - 1)) === 0;
-      };
-
-      if (!isPowerOfTwo(approvedTeams.length)) {
-        setGenerationError(
-          'Knockout tournaments require a valid bracket size (2, 4, 8, 16, …).\nThe current number of teams cannot form a knockout bracket.\nPlease adjust the teams or choose the Round-Robin format instead.'
-        );
-        setIsGenerating(false);
-        return;
-      }
+        const isPowerOfTwo = (n: number) => n > 0 && (n & (n - 1)) === 0;
+        if (approvedTeams.length < 2 || !isPowerOfTwo(approvedTeams.length)) {
+            setGenerationError(
+                'Knockout tournaments require a valid bracket size (2, 4, 8, 16, …).\nThe current number of teams cannot form a knockout bracket.\nPlease adjust the teams or choose the Round-Robin format instead.'
+            );
+            setIsGenerating(false);
+            return;
+        }
     }
     
     if (approvedTeams.length < 2) {
@@ -207,48 +203,59 @@ export default function SchedulePage() {
     
     let pairs: { teamAId: string, teamBId: string }[] = [];
     const bracketRef = doc(firestore, 'brackets', eventId);
-    const newBracket: Bracket = { id: eventId, rounds: [] };
-    let totalMatches = 0;
+    let newBracket: Bracket | null = null;
+    let initialMatches: Match[] = [];
+    let aiInputMatches: any[] = [];
 
     if (event.settings.format === 'round-robin') {
         pairs = generateRoundRobinPairs(approvedTeams);
-        totalMatches = pairs.length;
-        const matchIds = pairs.map((_, index) => `m${Date.now() + index}`);
-        newBracket.rounds.push({
-            roundIndex: 1,
-            roundName: 'Round Robin',
-            matches: matchIds
-        });
+        aiInputMatches = pairs.map((pair, index) => ({
+            matchId: `m${Date.now() + index}`,
+            ...pair,
+            sportType: event.sportType,
+            round: 1, // All matches are in one round for round-robin
+        }));
     } else { // Knockout
-        pairs = generateKnockoutPairs(approvedTeams);
-        totalMatches = pairs.length;
-        // Simple first round bracket
-        const matchIds = pairs.map((_, index) => `m${Date.now() + index}`);
-        newBracket.rounds.push({
-            roundIndex: 1,
-            roundName: 'Round 1',
-            matches: matchIds
-        });
+        newBracket = { id: eventId, rounds: [] };
+        let currentTeams = approvedTeams;
+        let roundIndex = 1;
+        let matchCounter = 0;
 
-        let nextRoundMatches = Math.floor(pairs.length / 2);
-        let roundIndex = 2;
-        while (nextRoundMatches > 0) {
-            const nextRoundMatchIds = Array.from({length: nextRoundMatches}, (_, i) => `m${Date.now() + totalMatches + i}`);
-            totalMatches += nextRoundMatches;
-            let roundName = `Round ${roundIndex}`;
-            if(nextRoundMatches === 1) roundName = 'Final';
-            if(nextRoundMatches === 2) roundName = 'Semifinals';
+        while (currentTeams.length > 1) {
+            const roundPairs = generateKnockoutPairs(currentTeams);
+            const roundMatchIds = roundPairs.map(() => `m${Date.now() + (matchCounter++)}`);
+            
+            const roundName = currentTeams.length / 2 === 1 ? 'Final' 
+                            : currentTeams.length / 2 === 2 ? 'Semifinals'
+                            : currentTeams.length / 2 === 4 ? 'Quarterfinals'
+                            : `Round ${roundIndex}`;
+            
             newBracket.rounds.push({
-                roundIndex,
+                roundIndex: roundIndex,
                 roundName: roundName,
-                matches: nextRoundMatchIds,
+                matches: roundMatchIds
             });
-            nextRoundMatches = Math.floor(nextRoundMatches / 2);
+
+            roundPairs.forEach((pair, index) => {
+                aiInputMatches.push({
+                    matchId: roundMatchIds[index],
+                    ...pair,
+                    sportType: event.sportType,
+                    round: roundIndex,
+                });
+            });
+
+            // For knockout, we create placeholder teams for the next round
+            const nextRoundTeams: Team[] = roundMatchIds.map(id => ({
+                teamId: `winner_${id}`,
+                teamName: `Winner of ${id}`,
+            } as Team));
+            currentTeams = nextRoundTeams;
             roundIndex++;
         }
     }
     
-    if(pairs.length === 0) {
+    if (aiInputMatches.length === 0) {
         setGenerationError('Could not generate any match pairs. Check your teams.');
         setIsGenerating(false);
         return;
@@ -270,22 +277,10 @@ export default function SchedulePage() {
             return acc;
         }, {} as Record<string, {startTime: string, endTime: string}[]>);
 
-        const teamPreferences = approvedTeams.reduce((acc, team) => {
-            acc[team.teamId] = team.preferredVenues || [];
-            return acc;
-        }, {} as Record<string, string[]>);
-
         const sportsData = sports.reduce((acc, sport) => {
             acc[sport.sportName] = { defaultDurationMinutes: sport.defaultDurationMinutes };
             return acc;
         }, {} as Record<string, {defaultDurationMinutes: number}>);
-
-        const matchesToSchedule = pairs.map((pair, index) => ({
-            matchId: newBracket.rounds[0].matches[index],
-            ...pair,
-            sportType: event.sportType,
-            round: 1,
-        }));
 
       const latestEndDate = new Date(event.startDate);
       latestEndDate.setDate(latestEndDate.getDate() + (event.durationDays || 7));
@@ -293,77 +288,64 @@ export default function SchedulePage() {
       const result = await optimizeScheduleWithAI({
           eventId: event.eventId,
           venueAvailability,
-          teamPreferences,
+          teamPreferences: {}, // Let AI decide based on availability primarily
+          teams: approvedTeams.map(t => t.teamId), // Pass all team IDs
           timeConstraints: {
             earliestStartTime: new Date(new Date(event.startDate).setHours(8, 0, 0, 0)).toISOString(),
-            latestEndTime: new Date(latestEndDate.setHours(18, 0, 0, 0)).toISOString(),
-        },
-          matches: matchesToSchedule,
+            latestEndTime: new Date(new Date(latestEndDate).setHours(18, 0, 0, 0)).toISOString(),
+          },
+          matches: aiInputMatches,
           sports: sportsData,
       });
 
       const { optimizedMatches } = result;
 
       if (!optimizedMatches || optimizedMatches.length === 0) {
-        setGenerationError('AI Scheduling Failed: The AI could not find a valid schedule with the given constraints. This may be due to not enough venues or time slots available to respect round-based scheduling. Please check your event duration and venue availability.');
+        setGenerationError('AI Scheduling Failed: The AI could not find a valid schedule with the given constraints. This may be due to not enough venues or time slots available to respect the scheduling rules. Please check your event duration and venue availability.');
         setIsGenerating(false);
         return;
       }
-
-      const allMatchesForEvent: Match[] = newBracket.rounds.flatMap(round => 
-        round.matches.map(matchId => {
-            const scheduledMatch = optimizedMatches.find(om => om.matchId === matchId);
-            
-            if (scheduledMatch) {
-                const originalMatch = matchesToSchedule.find(m => m.matchId === matchId);
-                return {
-                    ...originalMatch!,
-                    ...scheduledMatch,
-                    status: 'scheduled',
-                    winnerTeamId: '',
-                }
-            }
-            
-            const roundNumber = round.roundIndex;
-            return {
-                matchId: matchId,
-                teamAId: 'TBD',
-                teamBId: 'TBD',
-                sportType: event.sportType,
-                venueId: '',
-                startTime: '',
-                endTime: '',
-                round: round.roundIndex,
-                status: 'unscheduled',
-                winnerTeamId: '',
-            }
-        })
-      );
       
-      const finalMatches = allMatchesForEvent.map(match => {
-          const optimized = optimizedMatches.find(opt => opt.matchId === match.matchId);
-          if (optimized) {
-              const originalMatch = matchesToSchedule.find(m => m.matchId === optimized.matchId);
-              return {
-                  ...match,
-                  teamAId: originalMatch?.teamAId || 'TBD',
-                  teamBId: originalMatch?.teamBId || 'TBD',
-                  venueId: optimized.venueId,
-                  startTime: optimized.startTime,
-                  endTime: optimized.endTime,
-                  status: 'scheduled' as const,
-              };
-          }
-          return match;
+      const finalMatches: Match[] = optimizedMatches.map(optMatch => {
+          const originalMatch = aiInputMatches.find(m => m.matchId === optMatch.matchId);
+          return {
+              ...originalMatch!,
+              venueId: optMatch.venueId,
+              startTime: optMatch.startTime,
+              endTime: optMatch.endTime,
+              status: 'scheduled',
+              winnerTeamId: '',
+          };
       });
 
+      // For knockout, add the TBD matches
+      if (newBracket) {
+          newBracket.rounds.forEach(round => {
+              if (round.roundIndex > 1) { // Only for rounds after the first
+                  round.matches.forEach(matchId => {
+                      finalMatches.push({
+                          matchId: matchId,
+                          teamAId: 'TBD',
+                          teamBId: 'TBD',
+                          sportType: event.sportType,
+                          venueId: '',
+                          startTime: '',
+                          endTime: '',
+                          round: round.roundIndex,
+                          status: 'unscheduled',
+                          winnerTeamId: '',
+                      });
+                  });
+              }
+          });
+          setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
+      }
 
       await updateDoc(eventRef, { matches: finalMatches, status: 'ongoing' });
-      setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
 
       toast({
-        title: 'Schedule & Bracket Generated',
-        description: `The match schedule and initial bracket for the ${event.settings.format} tournament have been created.`,
+        title: 'Schedule Generated',
+        description: `The match schedule for the ${event.settings.format} tournament has been created.`,
       });
 
     } catch (error: any) {
@@ -538,5 +520,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
