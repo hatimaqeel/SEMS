@@ -118,7 +118,9 @@ export default function SignupPage() {
   return (
     <Card className="mx-auto max-w-md w-full">
       <CardHeader className="space-y-2 text-center">
-        <Logo />
+        <div className="flex justify-center">
+          <Logo />
+        </div>
         <CardTitle className="text-2xl">Create a Student Account</CardTitle>
         <CardDescription>
           Enter your details below to register.
@@ -162,7 +164,7 @@ export default function SignupPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="student-email">Email</Label>
-              <Input id="student-email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} disabled={loading} />
+              <Input id="student-email" type="email" placeholder="student@example.com" required value={email} onChange={e => setEmail(e.target.value)} disabled={loading} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="student-password">Password</Label>
@@ -194,5 +196,3 @@ export default function SignupPage() {
     </Card>
   );
 }
-
-    
