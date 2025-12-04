@@ -296,14 +296,17 @@ export default function SchedulePage() {
           round: m.round,
       }));
 
+      const latestEndDate = new Date(event.startDate);
+      latestEndDate.setDate(latestEndDate.getDate() + (event.durationDays || 7));
+
       const result = await optimizeScheduleWithAI({
           eventId: event.eventId,
           venueAvailability,
           teamPreferences,
-          timeConstraints: { 
-              earliestStartTime: new Date(new Date(event.startDate).setHours(8,0,0,0)).toISOString(),
-              latestEndTime: new Date(new Date(event.startDate).setDate(new Date(event.startDate).getDate() + (event.durationDays || 7))).setHours(18,0,0,0).toISOString(),
-          },
+          timeConstraints: {
+            earliestStartTime: new Date(new Date(event.startDate).setHours(8, 0, 0, 0)).toISOString(),
+            latestEndTime: new Date(latestEndDate.setHours(18, 0, 0, 0)).toISOString(),
+        },
           matches: aiInputMatches,
           sports: sportsData,
       });
