@@ -52,7 +52,28 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+      });
+      return;
+    }
+
+    // Password validation regex: 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+       toast({
+        variant: 'destructive',
+        title: 'Weak Password',
+        description: 'Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, one number, and one special character.',
+      });
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast({
@@ -60,9 +81,10 @@ export default function SignupPage() {
         title: 'Error',
         description: 'Passwords do not match.',
       });
-      setLoading(false);
       return;
     }
+    
+    setLoading(true);
 
     try {
       const userCredential = await initiateEmailSignUp(auth, email, password);

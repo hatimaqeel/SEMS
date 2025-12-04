@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -282,6 +281,29 @@ export default function UsersPage() {
   
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+      });
+      return;
+    }
+
+    // Password validation regex: 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+       toast({
+        variant: 'destructive',
+        title: 'Weak Password',
+        description: 'Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, one number, and one special character.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     const tempApp = initializeApp(firebaseConfig, `temp-app-${new Date().getTime()}`);
@@ -308,7 +330,12 @@ export default function UsersPage() {
         }
 
         const userProfileRef = doc(firestore, 'userProfiles', newUser.uid);
-        setDocumentNonBlocking(userProfileRef, profileData, {});
+        // Ensure we don't write undefined fields
+        const finalProfileData = Object.fromEntries(
+            Object.entries(profileData).filter(([_, v]) => v !== undefined)
+        );
+
+        setDocumentNonBlocking(userProfileRef, finalProfileData, {});
 
         await sendEmailVerification(newUser);
         await signOut(tempAuth);
@@ -699,7 +726,6 @@ export default function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }
