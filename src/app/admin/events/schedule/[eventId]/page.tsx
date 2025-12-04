@@ -289,7 +289,6 @@ export default function SchedulePage() {
           eventId: event.eventId,
           venueAvailability,
           teamPreferences: {}, // Let AI decide based on availability primarily
-          teams: approvedTeams.map(t => t.teamId), // Pass all team IDs
           timeConstraints: {
             earliestStartTime: new Date(new Date(event.startDate).setHours(8, 0, 0, 0)).toISOString(),
             latestEndTime: new Date(new Date(latestEndDate).setHours(18, 0, 0, 0)).toISOString(),
