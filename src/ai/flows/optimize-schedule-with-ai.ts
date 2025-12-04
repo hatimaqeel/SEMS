@@ -64,13 +64,14 @@ const prompt = ai.definePrompt({
 
 CONSTRAINTS FOR MATCH SCHEDULING (STRICT):
 
-1.  **No Double-Booking (Highest Priority)**:
+1.  **Round Progression (Highest Priority)**:
+    *   All matches from a given round (e.g., Round 1) MUST be scheduled to finish before any match from the next round (e.g., Round 2) can begin.
+    *   There must be at least a ONE FULL DAY rest period between rounds. For example, if the last match of Round 1 finishes on Monday at 5:00 PM, the very first match of Round 2 cannot start any earlier than Tuesday at 8:00 AM.
+    *   This rule is the most critical for knockout tournaments and must be followed strictly.
+
+2.  **No Double-Booking**:
     *   Never schedule two matches at the same venue if their times overlap.
     *   An overlap occurs if one match starts before another match at the same venue has finished. This is forbidden.
-
-2.  **MANDATORY REST DAY for "TBD" Matches**:
-    *   Any match where the teams are "TBD vs TBD" (e.g., a Round 2 match) MUST be scheduled at least ONE FULL DAY after the last match of the preceding round (e.g., Round 1) has finished.
-    *   Example: If the last Round 1 match finishes on Monday at 5:00 PM, the first Round 2 match can start no earlier than Tuesday at any time. Scheduling it on Monday is a critical failure. This is the most important rule for multi-round tournaments.
 
 3.  **Venue Time Buffer**:
     *   If you must schedule two matches at the same venue on the same day (e.g., for a round-robin tournament), the next match MUST start at least 2 hours after the previous match at that venue ends.
@@ -80,19 +81,17 @@ CONSTRAINTS FOR MATCH SCHEDULING (STRICT):
     *   A hard rule is that no matches can be scheduled before 8:00 AM or after 6:00 PM (18:00) local time for any given day.
 
 5.  **Conflict Resolution Order**:
-    *   If a match conflicts with another:
-        a. First, try to assign a different available venue at the same time.
-        b. If no other venue is available, move the match to the earliest available time slot that respects all rules (rest days, buffer time).
-        c. Never allow an overlapping match at the same venue.
+    *   If a conflict arises, prioritize respecting the round progression and rest day rules above all else.
+    *   If a schedule that respects all rules is not possible with the given venues and time constraints, you must state this in your reasoning and return an empty optimizedMatches array. Do not generate a broken or invalid schedule.
 
 6.  **Schedule ALL Matches**:
-    *   You must provide a valid venue, startTime, and endTime for every single match provided in the input. This includes matches where the teams are "TBD vs TBD". These are placeholders for future rounds and must be scheduled in advance according to the mandatory rest day rule.
+    *   You must provide a valid venue, startTime, and endTime for every single match provided in the input. This includes placeholder matches where teams are "TBD vs TBD". These must be scheduled in advance according to the mandatory rest day rule.
 
 7.  **Match Duration**:
     *   Calculate the end time for each match using the default duration for the given sport.
 
 8.  **Team Preferences (Lowest Priority)**:
-    *   You can consider team venue preferences, but this is the least important rule. Adhering to all other constraints (especially no conflicts and rest days) is mandatory and takes precedence.
+    *   You can consider team venue preferences, but this is the least important rule. Adhering to all other constraints is mandatory and takes precedence.
 
 ---
 **INPUT DATA:**
@@ -118,7 +117,7 @@ Sports Data:
 ---
 **YOUR TASK:**
 
-Based on the strict rules above, generate the complete, conflict-free schedule. Provide a detailed reasoning for your choices, explaining how you avoided conflicts and managed round progression, especially the mandatory rest day for TBD matches.
+Based on the strict rules above, generate the complete, conflict-free schedule. Provide a detailed reasoning for your choices, explaining how you avoided conflicts and managed round progression, especially the mandatory rest day between rounds. If a valid schedule is impossible, explain why.
   `,
 });
 
