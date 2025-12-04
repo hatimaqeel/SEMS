@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +33,8 @@ export default function LoginPage() {
   const { user, isUserLoading, userError } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const isAdminLogin = searchParams.get('type') === 'admin';
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -143,6 +145,7 @@ export default function LoginPage() {
         <div className="flex justify-center">
           <Logo />
         </div>
+        <CardTitle className="text-2xl">Login to your account</CardTitle>
         <CardDescription>
           Enter your email below to access your dashboard
         </CardDescription>
@@ -155,7 +158,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@sems.com"
+                placeholder={isAdminLogin ? "admin@sems.com" : "student@example.com"}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -165,12 +168,14 @@ export default function LoginPage() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Forgot your password?
-                </Link>
+                {!isAdminLogin && (
+                  <Link
+                    href="#"
+                    className="ml-auto inline-block text-sm underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                )}
               </div>
               <div className="relative">
                 <Input
@@ -197,6 +202,16 @@ export default function LoginPage() {
             </Button>
           </div>
         </form>
+         <div className="mt-4 text-center text-sm">
+          {!isAdminLogin && (
+            <>
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="underline">
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
         <div className="mt-6 text-center">
             <Button variant="link" asChild className="text-muted-foreground">
                 <Link href="/">
