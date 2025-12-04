@@ -275,6 +275,8 @@ export default function UsersPage() {
   
   const handleAddUser = () => {
     clearForm();
+    // Default to student role, especially for admins who can only create students
+    setRole('student');
     setIsFormOpen(true);
   };
   
@@ -478,7 +480,7 @@ export default function UsersPage() {
         title="Manage Users"
         description="View and manage all users with access to the system."
       >
-        {currentUserRole === 'super-admin' && (
+        {(currentUserRole === 'super-admin' || currentUserRole === 'admin') && (
             <Button onClick={handleAddUser}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add New User
@@ -531,14 +533,16 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Create a new student or administrator account. A verification email will be sent.
+              {currentUserRole === 'super-admin' ? 'Create a new student or administrator account.' : 'Create a new student account.'} A verification email will be sent.
             </DialogDescription>
           </DialogHeader>
           <Tabs value={role} onValueChange={(v) => setRole(v as 'student' | 'admin')}>
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="student" disabled={isSubmitting}>Student</TabsTrigger>
-                <TabsTrigger value="admin" disabled={isSubmitting || currentUserRole !== 'super-admin'}>Administrator</TabsTrigger>
-            </TabsList>
+            {currentUserRole === 'super-admin' && (
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="student" disabled={isSubmitting}>Student</TabsTrigger>
+                    <TabsTrigger value="admin" disabled={isSubmitting}>Administrator</TabsTrigger>
+                </TabsList>
+            )}
             <form onSubmit={handleFormSubmit}>
                 <TabsContent value="student" className="grid gap-4 mt-4">
                      <div className="grid gap-2">
