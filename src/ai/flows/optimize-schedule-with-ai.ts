@@ -66,15 +66,14 @@ CONSTRAINTS FOR MATCH SCHEDULING (STRICT):
 
 1.  **Round Progression (Highest Priority)**:
     *   All matches from a given round (e.g., Round 1) MUST be scheduled to finish before any match from the next round (e.g., Round 2) can begin.
-    *   There must be at least a ONE FULL DAY rest period between rounds. For example, if the last match of Round 1 finishes on Monday at 5:00 PM, the very first match of Round 2 cannot start any earlier than Tuesday at 8:00 AM.
-    *   This rule is the most critical for knockout tournaments and must be followed strictly.
+    *   To ensure rest, Round 2 can only start on the calendar day *after* the last match of Round 1 has finished. For example, if the last Round 1 match finishes on Monday (at any time), the first Round 2 match can start no earlier than Tuesday morning. This principle applies to all subsequent rounds.
 
 2.  **No Double-Booking**:
     *   Never schedule two matches at the same venue if their times overlap.
     *   An overlap occurs if one match starts before another match at the same venue has finished. This is forbidden.
 
 3.  **Venue Time Buffer**:
-    *   If you must schedule two matches at the same venue on the same day (e.g., for a round-robin tournament), the next match MUST start at least 2 hours after the previous match at that venue ends.
+    *   If you schedule multiple matches at the same venue on the same day (e.g., for a round-robin tournament or early rounds of a knockout), the next match MUST start at least 2 hours after the previous match at that venue ends.
 
 4.  **Overall Time Constraints**:
     *   All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
@@ -85,7 +84,7 @@ CONSTRAINTS FOR MATCH SCHEDULING (STRICT):
     *   If a schedule that respects all rules is not possible with the given venues and time constraints, you must state this in your reasoning and return an empty optimizedMatches array. Do not generate a broken or invalid schedule.
 
 6.  **Schedule ALL Matches**:
-    *   You must provide a valid venue, startTime, and endTime for every single match provided in the input. This includes placeholder matches where teams are "TBD vs TBD". These must be scheduled in advance according to the mandatory rest day rule.
+    *   You must provide a valid venue, startTime, and endTime for every single match provided in the input. This includes placeholder matches where teams are "TBD vs TBD". These must be scheduled in advance according to the mandatory round progression rule. The 'TBD' identifier is a valid placeholder for a future team.
 
 7.  **Match Duration**:
     *   Calculate the end time for each match using the default duration for the given sport.
@@ -117,7 +116,7 @@ Sports Data:
 ---
 **YOUR TASK:**
 
-Based on the strict rules above, generate the complete, conflict-free schedule. Provide a detailed reasoning for your choices, explaining how you avoided conflicts and managed round progression, especially the mandatory rest day between rounds. If a valid schedule is impossible, explain why.
+Based on the strict rules above, generate the complete, conflict-free schedule. Provide a detailed reasoning for your choices, explaining how you avoided conflicts and managed round progression. If a valid schedule is impossible, explain why.
   `,
 });
 
