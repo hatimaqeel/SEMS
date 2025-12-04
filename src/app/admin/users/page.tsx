@@ -344,12 +344,19 @@ export default function UsersPage() {
 
     const userDocRef = doc(firestore, 'users', selectedUser.userId);
     try {
-      await updateDoc(userDocRef, {
+      const dataToUpdate: Partial<User> = {
         displayName: editName,
         dept: editDept,
-        registrationNumber: selectedUser.role === 'student' ? editReg : undefined,
-        facultyId: selectedUser.role === 'admin' ? editFacultyId : undefined,
-      });
+      };
+
+      if (selectedUser.role === 'student') {
+        dataToUpdate.registrationNumber = editReg;
+      }
+      if (selectedUser.role === 'admin') {
+        dataToUpdate.facultyId = editFacultyId;
+      }
+
+      await updateDoc(userDocRef, dataToUpdate);
       toast({ title: 'User Updated', description: `${editName}'s profile has been updated.` });
       setIsEditUserOpen(false);
     } catch (error: any) {
@@ -692,5 +699,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

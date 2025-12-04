@@ -57,46 +57,49 @@ export default function LoginPage() {
         let userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-          // Check for a pending profile
           const pendingProfileRef = doc(firestore, 'userProfiles', user.uid);
           const pendingProfileSnap = await getDoc(pendingProfileRef);
 
-          let userDataFromProfile: Omit<User, 'id' | 'userId' | 'email' | 'emailVerified'> = {
-            displayName: user.displayName || user.email || 'New User',
-            role: 'student', // Default role for self-signup
-            dept: 'Unassigned',
-            status: 'active',
-          };
-          
-          if(pendingProfileSnap.exists()) {
+          if (pendingProfileSnap.exists()) {
             const pendingData = pendingProfileSnap.data();
-             userDataFromProfile = {
-                displayName: pendingData.displayName,
-                role: pendingData.role,
-                dept: pendingData.dept,
+            const newUser: Omit<User, 'id'> = {
+              userId: user.uid,
+              email: user.email!,
+              emailVerified: true,
+              displayName: pendingData.displayName,
+              role: pendingData.role,
+              dept: pendingData.dept,
+              status: 'active',
+              // Conditionally add fields to avoid 'undefined'
+              ...(pendingData.registrationNumber && { registrationNumber: pendingData.registrationNumber }),
+              ...(pendingData.facultyId && { facultyId: pendingData.facultyId }),
+              ...(pendingData.gender && { gender: pendingData.gender }),
+            };
+
+            await setDoc(userDocRef, newUser);
+            await deleteDoc(pendingProfileRef);
+            userDoc = await getDoc(userDocRef); // Re-fetch the document
+            toast({
+              title: 'Account Verified!',
+              description: 'Your profile has been created. Welcome!',
+            });
+          } else {
+             // Fallback for self-signup if no profile is found (though less likely with current flow)
+             await setDoc(userDocRef, {
+                userId: user.uid,
+                email: user.email!,
+                emailVerified: true,
+                displayName: user.displayName || user.email || 'New User',
+                role: 'student', 
+                dept: 'Unassigned',
                 status: 'active',
-                registrationNumber: pendingData.registrationNumber,
-                facultyId: pendingData.facultyId,
-                gender: pendingData.gender,
-             }
-             // Delete the pending profile
-             await deleteDoc(pendingProfileRef);
+             });
+             userDoc = await getDoc(userDocRef);
+             toast({
+              title: 'Account Verified!',
+              description: 'Your profile has been created. Welcome!',
+            });
           }
-
-
-          const newUser: Omit<User, 'id'> = {
-            userId: user.uid,
-            email: user.email!,
-            emailVerified: true,
-            ...userDataFromProfile,
-          };
-
-          await setDoc(userDocRef, newUser);
-          userDoc = await getDoc(userDocRef); // Re-fetch the document
-          toast({
-            title: 'Account Verified!',
-            description: 'Your profile has been created. Welcome!',
-          });
         }
         
         const userData = userDoc.data() as User;
@@ -147,9 +150,11 @@ export default function LoginPage() {
           <Logo />
         </div>
         <CardTitle className="text-2xl">Login to your account</CardTitle>
-        <CardDescription>
-          Enter your email below to access your dashboard
-        </CardDescription>
+        {!isAdminLogin && (
+            <CardDescription>
+            Enter your email below to access your dashboard
+            </CardDescription>
+        )}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin}>
@@ -225,5 +230,3 @@ export default function LoginPage() {
     </Card>
   );
 }
-
-    
