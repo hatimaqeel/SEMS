@@ -152,7 +152,7 @@ export default function LoginPage() {
         <CardTitle className="text-2xl">Login to your account</CardTitle>
         <CardDescription>
           {isAdminLogin
-            ? 'Enter your administrator credentials to access the dashboard.'
+            ? 'Enter admin credentials to access the dashboard.'
             : 'Enter your email below to access your dashboard'}
         </CardDescription>
       </CardHeader>
