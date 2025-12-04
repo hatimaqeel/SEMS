@@ -2,9 +2,9 @@
   "placeholderImages": [
     {
       "id": "hero",
-      "description": "A wide-angle shot of a university sports stadium at dusk.",
-      "imageUrl": "https://storage.googleapis.com/project-1-4529446714-2e912b7a/public/f2b0a9697960309995c6c04f98dfa732.png",
-      "imageHint": "university campus"
+      "description": "An exciting university sports match in a stadium.",
+      "imageUrl": "https://images.unsplash.com/photo-1598121876853-82437626c783?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxzcG9ydHMlMjBzdGFkaXVtfGVufDB8fHx8MTc2NDg0NTkwMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sports stadium"
     },
     {
       "id": "university",
