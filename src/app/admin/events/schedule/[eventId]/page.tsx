@@ -195,14 +195,17 @@ export default function SchedulePage() {
         return;
     }
 
+    // --- START OF NEW LOGIC ---
     if (event.settings.format === 'knockout') {
-      const uniqueDepartments = new Set(approvedTeams.map(team => team.department.toLowerCase().trim()));
-      if (uniqueDepartments.size < 2 && !event.settings.allowSameDeptMatches) {
-        setGenerationError('Knockout scheduling requires teams from at least two different departments. You can enable matching between same-department teams in the event settings.');
+      if (approvedTeams.length % 2 !== 0) {
+        setGenerationError(
+          'Knockout tournaments require an even number of teams (2, 4, 8, 16, …). Please add or remove teams to create an even number, or choose the Round-Robin format instead.'
+        );
         setIsGenerating(false);
         return;
       }
     }
+    // --- END OF NEW LOGIC ---
     
     // --- START OF MODIFIED LOGIC ---
 
@@ -240,11 +243,6 @@ export default function SchedulePage() {
                 for (let i = 0; i < shuffledTeams.length; i += 2) {
                     if (shuffledTeams[i + 1]) {
                         pairs.push({ teamAId: shuffledTeams[i].teamId, teamBId: shuffledTeams[i + 1].teamId });
-                    } else {
-                        // Bye for the first round
-                        const byeWinnerId = shuffledTeams[i].teamId;
-                        const matchId = `m${Date.now() + allMatchesToSchedule.length}`;
-                        allMatchesToSchedule.push({ matchId, teamAId: byeWinnerId, teamBId: 'BYE', sportType: event.sportType, round: roundIndex, winnerTeamId: byeWinnerId });
                     }
                 }
             } else {
@@ -538,3 +536,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
