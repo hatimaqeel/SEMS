@@ -143,7 +143,6 @@ export default function LoginPage() {
         <div className="flex justify-center">
           <Logo />
         </div>
-        <CardTitle className="text-2xl">Login to your account</CardTitle>
         <CardDescription>
           Enter your email below to access your dashboard
         </CardDescription>
