@@ -6,7 +6,7 @@ import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase
 import { doc, updateDoc, collection } from 'firebase/firestore';
 import type { Event, Bracket as BracketType, Match, Team, Venue, Sport } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { Loader, Calendar, Clock } from 'lucide-react';
+import { Loader, Calendar, Clock, Trophy } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -28,7 +28,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useState }from 'react';
-import { optimizeScheduleWithAI } from '@/ai/flows/optimize-schedule-with-ai';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 type BracketMatch = Match & {
   teamA?: Team;
@@ -166,7 +173,7 @@ export default function BracketPage() {
         await updateDoc(eventDocRef, { matches: updatedMatches });
         toast({
             title: "Winner Declared",
-            description: `${winner.teamName} advances.`
+            description: `${winner.teamName} wins.`
         });
     } catch (e: any) {
         toast({
@@ -182,6 +189,7 @@ export default function BracketPage() {
 
   const isLoading = isLoadingEvent || isLoadingBracket || isLoadingVenues || isLoadingSports;
   const getTeamById = (teamId: string) => event?.teams.find(t => t.teamId === teamId);
+  const getTeamName = (teamId: string) => getTeamById(teamId)?.teamName || 'TBD';
 
   if (isLoading) {
     return (
@@ -191,7 +199,7 @@ export default function BracketPage() {
     );
   }
 
-  if (!event || !bracket || bracketError) {
+  if (!event || (!bracket && event.settings.format === 'knockout')) {
     return (
        <div className="flex flex-col gap-8">
         <PageHeader
@@ -212,14 +220,14 @@ export default function BracketPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title={`Bracket for ${event.name}`}
-        description={event.settings.format === 'knockout' ? "Declare winners to automatically advance them to the next round." : "This is a round-robin tournament. All matches are listed on the schedule page."}
+        description={event.settings.format === 'knockout' ? "Declare winners to automatically advance them to the next round." : "Declare winners for each match in this round-robin tournament."}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Tournament Bracket</CardTitle>
+          <CardTitle>Tournament Matches</CardTitle>
           <CardDescription>
-            {event.settings.format === 'knockout' ? "Click 'Win' to set a match winner. The winner will move to the next round." : "Round-robin matches do not use a bracket structure. See the schedule for match details."}
+            {event.settings.format === 'knockout' ? "Click 'Win' to set a match winner. The winner will move to the next round." : "Click on a team's name to declare them the winner of the match."}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4">
@@ -249,12 +257,64 @@ export default function BracketPage() {
               </div>
             </div>
           ) : (
-             <div className="text-center py-10 px-6 bg-muted/50 rounded-lg">
-                <p className="font-semibold">Round Robin Format</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                 All matches are independent. View the full list on the "Manage Schedule" page.
-                </p>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Round</TableHead>
+                  <TableHead>Match</TableHead>
+                  <TableHead>Winner</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {event.matches.length > 0 ? (
+                  event.matches.map(match => (
+                    <TableRow key={match.matchId}>
+                      <TableCell>{match.round}</TableCell>
+                      <TableCell className="font-medium">
+                        {getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}
+                      </TableCell>
+                      <TableCell>
+                        {match.winnerTeamId ? (
+                           <div className="flex items-center gap-2">
+                             <Trophy className="h-4 w-4 text-yellow-500" />
+                             <span className="font-semibold">{getTeamName(match.winnerTeamId)}</span>
+                           </div>
+                        ) : (
+                          'TBD'
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {match.status !== 'completed' && match.teamAId !== 'TBD' && match.teamBId !== 'TBD' && (
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSelectWinner(match as BracketMatch, getTeamById(match.teamAId)!)}
+                            >
+                              {getTeamName(match.teamAId)} Wins
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSelectWinner(match as BracketMatch, getTeamById(match.teamBId)!)}
+                            >
+                              {getTeamName(match.teamBId)} Wins
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No matches scheduled for this event yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
