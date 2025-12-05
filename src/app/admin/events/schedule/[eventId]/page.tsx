@@ -21,20 +21,42 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-function generateRoundRobinPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
-  const pairs: { teamAId: string, teamBId: string }[] = [];
-  if (teams.length < 2) {
-    return pairs;
+// Generates a full round-robin schedule structure using the circle method.
+function generateRoundRobinAllRounds(teams: Team[]): { round: number, pairs: { teamAId: string, teamBId: string }[] }[] {
+  let participants = [...teams];
+  // If odd number of teams, add a dummy "bye" team
+  if (participants.length % 2 !== 0) {
+    participants.push({ teamId: 'BYE', teamName: 'BYE', department: '', players: [], sportType: '' });
   }
 
-  for (let i = 0; i < teams.length; i++) {
-    for (let j = i + 1; j < teams.length; j++) {
-      pairs.push({ teamAId: teams[i].teamId, teamBId: teams[j].teamId });
+  const n = participants.length;
+  const rounds: { round: number, pairs: { teamAId: string, teamBId: string }[] }[] = [];
+  const schedule: { home: Team, away: Team }[][] = [];
+
+  for (let round = 0; round < n - 1; round++) {
+    const roundMatches: { teamAId: string, teamBId: string }[] = [];
+    for (let i = 0; i < n / 2; i++) {
+      const teamA = participants[i];
+      const teamB = participants[n - 1 - i];
+      if (teamA.teamId !== 'BYE' && teamB.teamId !== 'BYE') {
+        // Randomly assign who is teamA vs teamB
+        if (Math.random() > 0.5) {
+            roundMatches.push({ teamAId: teamA.teamId, teamBId: teamB.teamId });
+        } else {
+            roundMatches.push({ teamAId: teamB.teamId, teamBId: teamA.teamId });
+        }
+      }
     }
+    rounds.push({ round: round + 1, pairs: roundMatches });
+
+    // Rotate participants for next round, keeping first team fixed
+    const lastTeam = participants.pop();
+    if(lastTeam) participants.splice(1, 0, lastTeam);
   }
-  
-  return pairs;
+
+  return rounds;
 }
+
 
 function generateKnockoutPairs(teams: (Team | {teamId: string})[]): { teamAId: string, teamBId: string }[] {
     const shuffled = teams.sort(() => 0.5 - Math.random());
@@ -80,12 +102,14 @@ export default function SchedulePage() {
     if (!teamId || teamId === 'TBD') return 'TBD';
     
     if (teamId.startsWith('winner_')) {
-      const matchId = teamId.substring(7); // remove "winner_"
-      const matchIndex = event?.matches.findIndex(m => m.matchId === matchId);
-      if (matchIndex !== -1 && matchIndex !== undefined) {
-          const roundName = bracket?.rounds.find(r => r.matches.includes(matchId))?.roundName || "Match";
-          return `Winner of ${roundName.slice(0,-1)} ${matchIndex + 1}`;
-      }
+        const matchId = teamId.substring(7); // remove "winner_"
+        const matchIndexInRound = bracket?.rounds.find(r => r.matches.includes(matchId))?.matches.indexOf(matchId);
+        const roundName = bracket?.rounds.find(r => r.matches.includes(matchId))?.roundName;
+
+        if (roundName && matchIndexInRound !== -1 && matchIndexInRound !== undefined) {
+             const cleanRoundName = roundName.endsWith('s') ? roundName.slice(0, -1) : roundName;
+             return `Winner of ${cleanRoundName} ${matchIndexInRound + 1}`;
+        }
        return `Winner of ${matchId.slice(0,4)}...`
     }
     return event?.teams.find(t => t.teamId === teamId)?.teamName || 'TBD';
@@ -204,6 +228,7 @@ export default function SchedulePage() {
 
     const approvedTeams = event.teams.filter(team => team.status === 'approved');
     
+    // --- KNOCKOUT VALIDATION ---
     if (event.settings.format === 'knockout') {
         const isPowerOfTwo = (n: number) => n > 0 && (n & (n - 1)) === 0;
         if (approvedTeams.length < 2 || !isPowerOfTwo(approvedTeams.length)) {
@@ -221,21 +246,42 @@ export default function SchedulePage() {
     
     let aiInputMatches: OptimizeScheduleWithAIInput['matches'] = [];
     let finalMatches: Match[] = roundToSchedule > 1 ? [...event.matches] : [];
+    let matchCounter = 0;
 
-    if (roundToSchedule === 1) { // Initial Generation
+    // --- INITIAL GENERATION (Round 1) ---
+    if (roundToSchedule === 1) {
+        // --- Round Robin Initial Generation ---
         if (event.settings.format === 'round-robin') {
-            const pairs = generateRoundRobinPairs(approvedTeams);
-            aiInputMatches = pairs.map((pair, index) => ({
+            const allRounds = generateRoundRobinAllRounds(approvedTeams);
+            const firstRound = allRounds[0];
+            
+            aiInputMatches = firstRound.pairs.map((pair, index) => ({
                 matchId: `m${Date.now()}-${index}`,
                 ...pair,
                 sportType: event.sportType,
                 round: 1,
             }));
-        } else { // Knockout - Initial Generation
+
+            // Create placeholder matches for all subsequent rounds
+            finalMatches = allRounds.flatMap(roundData => {
+                return roundData.pairs.map(pair => ({
+                    matchId: `m${Date.now()}-${matchCounter++}`,
+                    round: roundData.round,
+                    teamAId: pair.teamAId,
+                    teamBId: pair.teamBId,
+                    sportType: event.sportType,
+                    status: 'unscheduled',
+                    venueId: '',
+                    startTime: '',
+                    endTime: '',
+                    winnerTeamId: '',
+                }))
+            });
+
+        } else { // --- Knockout Initial Generation ---
             const newBracket: Bracket = { id: eventId, rounds: [] };
             let currentTeams: (Team | {teamId: string})[] = [...approvedTeams];
             let roundIndex = 1;
-            let matchCounter = 0;
             let allRoundMatches: {matchId: string, round: number, teamAId: string, teamBId: string}[] = [];
 
             while (currentTeams.length > 1) {
@@ -280,21 +326,15 @@ export default function SchedulePage() {
 
             setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
         }
-    } else { // Subsequent Knockout Round Generation
-        if (!bracket) {
+    } else { // --- SUBSEQUENT ROUND GENERATION (Both Formats) ---
+        if (!bracket && event.settings.format === 'knockout') {
             setGenerationError("Bracket data not found. Cannot schedule next round.");
-            setIsGenerating(false);
-            return;
-        }
-        const nextRoundInfo = bracket.rounds.find(r => r.roundIndex === roundToSchedule);
-        if (!nextRoundInfo) {
-            setGenerationError("Next round not found in bracket.");
             setIsGenerating(false);
             return;
         }
 
         aiInputMatches = event.matches
-            .filter(m => nextRoundInfo.matches.includes(m.matchId))
+            .filter(m => m.round === roundToSchedule)
             .map(m => ({
                 matchId: m.matchId,
                 teamAId: m.teamAId,
@@ -305,7 +345,7 @@ export default function SchedulePage() {
     }
 
     if (aiInputMatches.length === 0) {
-        toast({variant: 'destructive', title: 'Scheduling Info', description: 'All rounds for this knockout tournament have been played.'});
+        toast({variant: 'destructive', title: 'Scheduling Info', description: 'All rounds for this tournament have been played or no matches found for this round.'});
         setIsGenerating(false);
         return;
     }
@@ -315,14 +355,13 @@ export default function SchedulePage() {
 
         if (roundToSchedule > 1) {
             const prevRoundNumber = roundToSchedule - 1;
-            const prevRoundMatches = event.matches.filter(m => m.round === prevRoundNumber);
+            const prevRoundMatches = event.matches.filter(m => m.round === prevRoundNumber && m.status !== 'unscheduled');
             if (prevRoundMatches.length > 0) {
                 const lastMatchEndTime = prevRoundMatches.reduce((latest, match) => {
                     const endTime = new Date(match.endTime).getTime();
                     return endTime > latest ? endTime : latest;
                 }, 0);
                 
-                // Set earliest start time for the next round to be the morning of the next day
                 const dayAfterLastMatch = new Date(lastMatchEndTime);
                 dayAfterLastMatch.setDate(dayAfterLastMatch.getDate() + 1);
                 dayAfterLastMatch.setHours(8, 0, 0, 0); 
@@ -332,10 +371,9 @@ export default function SchedulePage() {
         
         const venueAvailability = venues.reduce((acc, venue) => {
             const availability = [];
-            // Use the correct start date for this round
-            const eventStartDate = new Date(earliestStartTime);
+            const roundStartDate = new Date(earliestStartTime);
             for (let i = 0; i < (event.durationDays || 7); i++) {
-                const day = new Date(eventStartDate);
+                const day = new Date(roundStartDate);
                 day.setDate(day.getDate() + i);
                 availability.push({
                     startTime: new Date(day.setHours(8, 0, 0, 0)).toISOString(),
@@ -356,6 +394,7 @@ export default function SchedulePage() {
       
       const result = await optimizeScheduleWithAI({
           eventId: event.eventId,
+          eventFormat: event.settings.format,
           venueAvailability,
           teamPreferences: {},
           timeConstraints: {
@@ -364,6 +403,7 @@ export default function SchedulePage() {
           },
           matches: aiInputMatches,
           sports: sportsData,
+          teams: approvedTeams.map(t => t.teamId),
       });
 
       const { optimizedMatches } = result;
@@ -374,32 +414,19 @@ export default function SchedulePage() {
         return;
       }
       
-      if (roundToSchedule === 1 && event.settings.format === 'round-robin') {
-        finalMatches = aiInputMatches.map(m => {
-            const opt = optimizedMatches.find(o => o.matchId === m.matchId);
-            return {
-                ...m,
-                venueId: opt?.venueId || '',
-                startTime: opt?.startTime || '',
-                endTime: opt?.endTime || '',
+      // Update the finalMatches array with the newly scheduled matches
+      optimizedMatches.forEach(optMatch => {
+        const matchIndex = finalMatches.findIndex(m => m.matchId === optMatch.matchId);
+        if (matchIndex !== -1) {
+            finalMatches[matchIndex] = {
+                ...finalMatches[matchIndex],
+                venueId: optMatch.venueId,
+                startTime: optMatch.startTime,
+                endTime: optMatch.endTime,
                 status: 'scheduled',
-                winnerTeamId: '',
-            }
-        });
-      } else { // Knockout or subsequent round
-        optimizedMatches.forEach(optMatch => {
-            const matchIndex = finalMatches.findIndex(m => m.matchId === optMatch.matchId);
-            if (matchIndex !== -1) {
-                finalMatches[matchIndex] = {
-                    ...finalMatches[matchIndex],
-                    venueId: optMatch.venueId,
-                    startTime: optMatch.startTime,
-                    endTime: optMatch.endTime,
-                    status: 'scheduled',
-                };
-            }
-        });
-      }
+            };
+        }
+      });
 
 
       await updateDoc(eventRef, { matches: finalMatches, status: 'ongoing' });
@@ -439,20 +466,21 @@ export default function SchedulePage() {
   let nextRoundToSchedule: number | null = null;
   let showNextRoundButton = false;
 
-  if (event.settings.format === 'knockout' && event.matches && event.matches.length > 0 && bracket) {
-    const scheduledRounds = [...new Set(event.matches.filter(m => m.status === 'scheduled' || m.status === 'completed').map(m => m.round))];
-    const highestScheduledRound = scheduledRounds.length > 0 ? Math.max(...scheduledRounds) : 0;
-    
-    if (highestScheduledRound > 0) {
-        const matchesInCurrentRound = event.matches.filter(m => m.round === highestScheduledRound);
-        const isCurrentRoundComplete = matchesInCurrentRound.length > 0 && matchesInCurrentRound.every(m => m.status === 'completed');
-        
-        const nextRoundInfo = bracket.rounds.find(r => r.roundIndex === highestScheduledRound + 1);
-        if (nextRoundInfo && isCurrentRoundComplete) {
-            showNextRoundButton = true;
-            nextRoundToSchedule = highestScheduledRound + 1;
-        }
-    }
+  if (event.matches && event.matches.length > 0) {
+      const scheduledRounds = [...new Set(event.matches.filter(m => m.status === 'scheduled' || m.status === 'completed').map(m => m.round))];
+      const highestScheduledRound = scheduledRounds.length > 0 ? Math.max(...scheduledRounds) : 0;
+      
+      if (highestScheduledRound > 0) {
+          const matchesInCurrentRound = event.matches.filter(m => m.round === highestScheduledRound);
+          const isCurrentRoundComplete = matchesInCurrentRound.length > 0 && matchesInCurrentRound.every(m => m.status === 'completed');
+          
+          const hasFutureUnscheduledRounds = event.matches.some(m => m.round === highestScheduledRound + 1);
+
+          if (isCurrentRoundComplete && hasFutureUnscheduledRounds) {
+              showNextRoundButton = true;
+              nextRoundToSchedule = highestScheduledRound + 1;
+          }
+      }
   }
 
 
@@ -608,5 +636,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
