@@ -23,12 +23,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 function generateRoundRobinPairs(teams: Team[]): { teamAId: string, teamBId: string }[] {
   const pairs: { teamAId: string, teamBId: string }[] = [];
-  if (teams.length < 2) return pairs;
+  if (teams.length < 2) {
+    return pairs;
+  }
+
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
       pairs.push({ teamAId: teams[i].teamId, teamBId: teams[j].teamId });
     }
   }
+  
   return pairs;
 }
 
@@ -318,16 +322,18 @@ export default function SchedulePage() {
                     return endTime > latest ? endTime : latest;
                 }, 0);
                 
+                // Set earliest start time for the next round to be the morning of the next day
                 const dayAfterLastMatch = new Date(lastMatchEndTime);
                 dayAfterLastMatch.setDate(dayAfterLastMatch.getDate() + 1);
-                dayAfterLastMatch.setHours(8, 0, 0, 0); // Start of next day
+                dayAfterLastMatch.setHours(8, 0, 0, 0); 
                 earliestStartTime = dayAfterLastMatch;
             }
         }
         
         const venueAvailability = venues.reduce((acc, venue) => {
             const availability = [];
-            const eventStartDate = new Date(earliestStartTime); // Use the correct start date for this round
+            // Use the correct start date for this round
+            const eventStartDate = new Date(earliestStartTime);
             for (let i = 0; i < (event.durationDays || 7); i++) {
                 const day = new Date(eventStartDate);
                 day.setDate(day.getDate() + i);
@@ -602,3 +608,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
