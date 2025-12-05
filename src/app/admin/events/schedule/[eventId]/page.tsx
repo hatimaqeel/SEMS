@@ -66,7 +66,18 @@ export default function SchedulePage() {
   const sportsRef = useMemoFirebase(() => collection(firestore, 'sports'), [firestore]);
   const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
 
-  const getTeamName = (teamId: string) => event?.teams.find(t => t.teamId === teamId)?.teamName || teamId;
+  const getTeamName = (teamId: string) => {
+    if (teamId.startsWith('winner_')) {
+      const matchId = teamId.substring(7);
+      const matchIndex = event?.matches.findIndex(m => m.matchId === matchId);
+      if (matchIndex !== -1 && matchIndex !== undefined) {
+          return `Winner of Match ${matchIndex + 1}`;
+      }
+      return `Winner of ${matchId.slice(0,4)}...`
+    }
+    return event?.teams.find(t => t.teamId === teamId)?.teamName || teamId;
+  };
+
   const getVenueName = (venueId: string) => venues?.find(v => v.id === venueId)?.name || venueId;
 
   const handleEditClick = (match: Match) => {
@@ -322,10 +333,13 @@ export default function SchedulePage() {
           newBracket.rounds.forEach(round => {
               if (round.roundIndex > 1) { // Only for rounds after the first
                   round.matches.forEach(matchId => {
+                      const nextMatchIndex = Math.floor(newBracket!.rounds[round.roundIndex - 2].matches.indexOf(matchId) / 2);
+                      const prevMatch1Id = newBracket!.rounds[round.roundIndex - 2].matches[nextMatchIndex * 2];
+                      const prevMatch2Id = newBracket!.rounds[round.roundIndex - 2].matches[nextMatchIndex * 2 + 1];
                       finalMatches.push({
                           matchId: matchId,
-                          teamAId: 'TBD',
-                          teamBId: 'TBD',
+                          teamAId: `winner_${prevMatch1Id}`,
+                          teamBId: `winner_${prevMatch2Id}`,
                           sportType: event.sportType,
                           venueId: '',
                           startTime: '',
