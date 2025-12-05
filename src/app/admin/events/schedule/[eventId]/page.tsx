@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { optimizeScheduleWithAI } from '@/ai/flows/optimize-schedule-with-ai';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, Bot, Loader, Calendar, Clock, MoreHorizontal, Edit } from 'lucide-react';
+import { AlertTriangle, Bot, Loader, Calendar, Clock, MoreHorizontal, Edit, GitBranch } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -38,6 +38,10 @@ function generateKnockoutPairs(teams: Team[]): { teamAId: string, teamBId: strin
     for (let i = 0; i < shuffled.length; i += 2) {
         if (shuffled[i + 1]) {
             pairs.push({ teamAId: shuffled[i].teamId, teamBId: shuffled[i+1].teamId });
+        } else {
+            // This logic is for byes, but the new rules forbid it.
+            // Keeping for structure, but should not be hit with power-of-2 validation.
+            pairs.push({ teamAId: shuffled[i].teamId, teamBId: 'BYE'});
         }
     }
     return pairs;
@@ -60,6 +64,9 @@ export default function SchedulePage() {
   const eventRef = useMemoFirebase(() => doc(firestore, 'events', eventId), [firestore, eventId]);
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
   
+  const bracketRef = useMemoFirebase(() => doc(firestore, 'brackets', eventId), [firestore, eventId]);
+  const { data: bracket } = useDoc<Bracket>(bracketRef);
+  
   const venuesRef = useMemoFirebase(() => collection(firestore, 'venues'), [firestore]);
   const { data: venues, isLoading: isLoadingVenues } = useCollection<Venue>(venuesRef);
 
@@ -67,6 +74,7 @@ export default function SchedulePage() {
   const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
 
   const getTeamName = (teamId: string) => {
+    if (!teamId) return 'TBD';
     if (teamId.startsWith('winner_')) {
       const matchId = teamId.substring(7);
       const matchIndex = event?.matches.findIndex(m => m.matchId === matchId);
@@ -75,7 +83,7 @@ export default function SchedulePage() {
       }
       return `Winner of ${matchId.slice(0,4)}...`
     }
-    return event?.teams.find(t => t.teamId === teamId)?.teamName || teamId;
+    return event?.teams.find(t => t.teamId === teamId)?.teamName || 'TBD';
   };
 
   const getVenueName = (venueId: string) => venues?.find(v => v.id === venueId)?.name || venueId;
@@ -91,7 +99,6 @@ export default function SchedulePage() {
     }
     setSelectedMatch(match);
     setEditVenue(match.venueId);
-    // Correctly format the time from the ISO string
     setEditTime(match.startTime ? new Date(match.startTime).toTimeString().substring(0, 5) : '');
     setIsEditModalOpen(true);
   };
@@ -112,7 +119,6 @@ export default function SchedulePage() {
       return;
     }
     
-    // Use the original match date, not the event start date
     const matchDate = new Date(selectedMatch.startTime || event.startDate);
     const [hours, minutes] = editTime.split(':').map(Number);
     const newStartTime = new Date(matchDate.getFullYear(), matchDate.getMonth(), matchDate.getDate(), hours, minutes);
@@ -129,17 +135,15 @@ export default function SchedulePage() {
 
     const newEndTime = new Date(newStartTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
 
-    // Conflict checking
     const conflict = event.matches.find(m => {
-        if (m.matchId === selectedMatch.matchId) return false; // Don't check against itself
-        if (m.venueId !== editVenue) return false; // Not in the same venue
+        if (m.matchId === selectedMatch.matchId) return false;
+        if (m.venueId !== editVenue) return false;
 
         const existingStart = new Date(m.startTime).getTime();
         const existingEnd = new Date(m.endTime).getTime();
         const newStart = newStartTime.getTime();
         const newEnd = newEndTime.getTime();
 
-        // Check for overlap
         return (newStart < existingEnd && newEnd > existingStart);
     });
 
@@ -180,7 +184,7 @@ export default function SchedulePage() {
   };
 
 
-  const handleGenerateSchedule = async () => {
+  const handleGenerateSchedule = async (roundToSchedule = 1) => {
     if (!event || !venues || !sports) {
       toast({
         variant: 'destructive',
@@ -198,76 +202,105 @@ export default function SchedulePage() {
     if (event.settings.format === 'knockout') {
         const isPowerOfTwo = (n: number) => n > 0 && (n & (n - 1)) === 0;
         if (approvedTeams.length < 2 || !isPowerOfTwo(approvedTeams.length)) {
-            setGenerationError(
-                'Knockout tournaments require a valid bracket size (2, 4, 8, 16, …).\nThe current number of teams cannot form a knockout bracket.\nPlease adjust the teams or choose the Round-Robin format instead.'
-            );
+            setGenerationError('Knockout tournaments require a valid bracket size (2, 4, 8, 16, …).\nThe current number of teams cannot form a knockout bracket.\nPlease adjust the teams or choose the Round-Robin format instead.');
             setIsGenerating(false);
             return;
         }
     }
     
-    if (approvedTeams.length < 2) {
+    if (roundToSchedule === 1 && approvedTeams.length < 2) {
       setGenerationError('Scheduling requires at least two approved teams.');
       setIsGenerating(false);
       return;
     }
     
-    let pairs: { teamAId: string, teamBId: string }[] = [];
-    const bracketRef = doc(firestore, 'brackets', eventId);
-    let newBracket: Bracket | null = null;
-    let initialMatches: Match[] = [];
-    let aiInputMatches: any[] = [];
+    let matchesToScheduleForAI: any[] = [];
+    let finalMatches: Match[] = roundToSchedule > 1 ? [...event.matches] : [];
 
-    if (event.settings.format === 'round-robin') {
-        pairs = generateRoundRobinPairs(approvedTeams);
-        aiInputMatches = pairs.map((pair, index) => ({
-            matchId: `m${Date.now() + index}`,
-            ...pair,
-            sportType: event.sportType,
-            round: 1, // All matches are in one round for round-robin
-        }));
-    } else { // Knockout
-        newBracket = { id: eventId, rounds: [] };
-        let currentTeams = approvedTeams;
-        let roundIndex = 1;
-        let matchCounter = 0;
+    if (roundToSchedule === 1) { // Initial Generation
+        if (event.settings.format === 'round-robin') {
+            const pairs = generateRoundRobinPairs(approvedTeams);
+            matchesToScheduleForAI = pairs.map((pair, index) => ({
+                matchId: `m${Date.now() + index}`,
+                ...pair,
+                sportType: event.sportType,
+                round: 1,
+            }));
+        } else { // Knockout - Initial Generation
+            const newBracket: Bracket = { id: eventId, rounds: [] };
+            let currentTeams = approvedTeams;
+            let roundIndex = 1;
+            let matchCounter = 0;
+            let allRoundMatches: {matchId: string, round: number, teamAId: string, teamBId: string}[] = [];
 
-        while (currentTeams.length > 1) {
-            const roundPairs = generateKnockoutPairs(currentTeams);
-            const roundMatchIds = roundPairs.map(() => `m${Date.now() + (matchCounter++)}`);
-            
-            const roundName = currentTeams.length / 2 === 1 ? 'Final' 
-                            : currentTeams.length / 2 === 2 ? 'Semifinals'
-                            : currentTeams.length / 2 === 4 ? 'Quarterfinals'
-                            : `Round ${roundIndex}`;
-            
-            newBracket.rounds.push({
-                roundIndex: roundIndex,
-                roundName: roundName,
-                matches: roundMatchIds
-            });
+            while (currentTeams.length >= 1) {
+                const isFinal = currentTeams.length === 2;
+                const roundPairs = isFinal ? [{teamAId: currentTeams[0].teamId, teamBId: currentTeams[1].teamId}] : generateKnockoutPairs(currentTeams);
+                
+                const roundMatchIds = roundPairs.map(() => `m${Date.now() + (matchCounter++)}`);
+                
+                const roundName = isFinal ? 'Final'
+                                : currentTeams.length === 4 ? 'Semifinals'
+                                : currentTeams.length === 8 ? 'Quarterfinals'
+                                : `Round ${roundIndex}`;
+                
+                newBracket.rounds.push({ roundIndex, roundName, matches: roundMatchIds });
 
-            roundPairs.forEach((pair, index) => {
-                aiInputMatches.push({
-                    matchId: roundMatchIds[index],
-                    ...pair,
-                    sportType: event.sportType,
-                    round: roundIndex,
+                roundPairs.forEach((pair, index) => {
+                    allRoundMatches.push({
+                        matchId: roundMatchIds[index],
+                        round: roundIndex,
+                        ...pair,
+                    });
                 });
-            });
+                
+                if (isFinal) break;
 
-            // For knockout, we create placeholder teams for the next round
-            const nextRoundTeams: Team[] = roundMatchIds.map(id => ({
-                teamId: `winner_${id}`,
-                teamName: `Winner of ${id}`,
-            } as Team));
-            currentTeams = nextRoundTeams;
-            roundIndex++;
+                const nextRoundTeams: Team[] = roundMatchIds.map(id => ({ teamId: `winner_${id}` } as Team));
+                currentTeams = nextRoundTeams;
+                roundIndex++;
+            }
+            
+            matchesToScheduleForAI = allRoundMatches.filter(m => m.round === 1);
+            
+            finalMatches = allRoundMatches.map(m => ({
+                ...m,
+                sportType: event.sportType,
+                status: m.round === 1 ? 'scheduled' : 'unscheduled', // Only first round is pending schedule
+                venueId: '',
+                startTime: '',
+                endTime: '',
+                winnerTeamId: '',
+            }));
+
+            setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
         }
+    } else { // Subsequent Knockout Round Generation
+        if (!bracket) {
+            setGenerationError("Bracket data not found. Cannot schedule next round.");
+            setIsGenerating(false);
+            return;
+        }
+        const nextRoundInfo = bracket.rounds.find(r => r.roundIndex === roundToSchedule);
+        if (!nextRoundInfo) {
+            setGenerationError("Next round not found in bracket.");
+            setIsGenerating(false);
+            return;
+        }
+
+        matchesToScheduleForAI = event.matches
+            .filter(m => nextRoundInfo.matches.includes(m.matchId))
+            .map(m => ({
+                matchId: m.matchId,
+                teamAId: m.teamAId,
+                teamBId: m.teamBId,
+                sportType: m.sportType,
+                round: m.round
+            }));
     }
-    
-    if (aiInputMatches.length === 0) {
-        setGenerationError('Could not generate any match pairs. Check your teams.');
+
+    if (matchesToScheduleForAI.length === 0) {
+        setGenerationError('Could not find any matches to schedule for this round.');
         setIsGenerating(false);
         return;
     }
@@ -276,7 +309,7 @@ export default function SchedulePage() {
         const venueAvailability = venues.reduce((acc, venue) => {
             const availability = [];
             const eventStartDate = new Date(event.startDate);
-            for (let i = 0; i < (event.durationDays || 7); i++) { // Default to 7 days if not specified
+            for (let i = 0; i < (event.durationDays || 7); i++) {
                 const day = new Date(eventStartDate);
                 day.setDate(day.getDate() + i);
                 availability.push({
@@ -292,73 +325,63 @@ export default function SchedulePage() {
             acc[sport.sportName] = { defaultDurationMinutes: sport.defaultDurationMinutes };
             return acc;
         }, {} as Record<string, {defaultDurationMinutes: number}>);
-
+      
       const latestEndDate = new Date(event.startDate);
       latestEndDate.setDate(latestEndDate.getDate() + (event.durationDays || 7));
 
       const result = await optimizeScheduleWithAI({
           eventId: event.eventId,
           venueAvailability,
-          teamPreferences: {}, // Let AI decide based on availability primarily
+          teamPreferences: {},
           timeConstraints: {
             earliestStartTime: new Date(new Date(event.startDate).setHours(8, 0, 0, 0)).toISOString(),
-            latestEndTime: new Date(new Date(latestEndDate).setHours(18, 0, 0, 0)).toISOString(),
+            latestEndTime: new Date(latestEndDate.setHours(18,0,0,0)).toISOString(),
           },
-          matches: aiInputMatches,
+          matches: matchesToScheduleForAI,
           sports: sportsData,
       });
 
       const { optimizedMatches } = result;
 
       if (!optimizedMatches || optimizedMatches.length === 0) {
-        setGenerationError('AI Scheduling Failed: The AI could not find a valid schedule with the given constraints. This may be due to not enough venues or time slots available to respect the scheduling rules. Please check your event duration and venue availability.');
+        setGenerationError('AI Scheduling Failed: The AI could not find a valid schedule with the given constraints. This may be due to not enough venues or time slots available to respect round-based scheduling. Please check your event duration and venue availability.');
         setIsGenerating(false);
         return;
       }
       
-      const finalMatches: Match[] = optimizedMatches.map(optMatch => {
-          const originalMatch = aiInputMatches.find(m => m.matchId === optMatch.matchId);
-          return {
-              ...originalMatch!,
-              venueId: optMatch.venueId,
-              startTime: optMatch.startTime,
-              endTime: optMatch.endTime,
-              status: 'scheduled',
-              winnerTeamId: '',
-          };
+      optimizedMatches.forEach(optMatch => {
+          const matchIndex = finalMatches.findIndex(m => m.matchId === optMatch.matchId);
+          if (matchIndex !== -1) {
+              finalMatches[matchIndex] = {
+                  ...finalMatches[matchIndex],
+                  venueId: optMatch.venueId,
+                  startTime: optMatch.startTime,
+                  endTime: optMatch.endTime,
+                  status: 'scheduled',
+              };
+          }
       });
-
-      // For knockout, add the TBD matches
-      if (newBracket) {
-          newBracket.rounds.forEach(round => {
-              if (round.roundIndex > 1) { // Only for rounds after the first
-                  round.matches.forEach(matchId => {
-                      const nextMatchIndex = Math.floor(newBracket!.rounds[round.roundIndex - 2].matches.indexOf(matchId) / 2);
-                      const prevMatch1Id = newBracket!.rounds[round.roundIndex - 2].matches[nextMatchIndex * 2];
-                      const prevMatch2Id = newBracket!.rounds[round.roundIndex - 2].matches[nextMatchIndex * 2 + 1];
-                      finalMatches.push({
-                          matchId: matchId,
-                          teamAId: `winner_${prevMatch1Id}`,
-                          teamBId: `winner_${prevMatch2Id}`,
-                          sportType: event.sportType,
-                          venueId: '',
-                          startTime: '',
-                          endTime: '',
-                          round: round.roundIndex,
-                          status: 'unscheduled',
-                          winnerTeamId: '',
-                      });
-                  });
-              }
-          });
-          setDocumentNonBlocking(bracketRef, newBracket, { merge: true });
+      
+      if(roundToSchedule === 1 && event.settings.format === 'round-robin') {
+        finalMatches = matchesToScheduleForAI.map(m => {
+            const opt = optimizedMatches.find(o => o.matchId === m.matchId);
+            return {
+                ...m,
+                venueId: opt?.venueId || '',
+                startTime: opt?.startTime || '',
+                endTime: opt?.endTime || '',
+                status: 'scheduled',
+                winnerTeamId: '',
+            }
+        });
       }
+
 
       await updateDoc(eventRef, { matches: finalMatches, status: 'ongoing' });
 
       toast({
         title: 'Schedule Generated',
-        description: `The match schedule for the ${event.settings.format} tournament has been created.`,
+        description: `Round ${roundToSchedule} for the ${event.settings.format} tournament has been scheduled.`,
       });
 
     } catch (error: any) {
@@ -378,9 +401,34 @@ export default function SchedulePage() {
     return <div className="text-center p-8">Event not found.</div>;
   }
   
-  const sortedMatches = event.matches?.slice().sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const sortedMatches = event.matches?.slice().sort((a, b) => {
+    if (a.round !== b.round) return a.round - b.round;
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  });
   
   const approvedTeams = event.teams.filter(team => team.status === 'approved');
+
+  // Logic for the "Generate Next Round" button
+  let nextRoundToSchedule: number | null = null;
+  let isCurrentRoundComplete = false;
+  let showNextRoundButton = false;
+
+  if (event.settings.format === 'knockout' && event.matches && event.matches.length > 0 && bracket) {
+    const scheduledRounds = [...new Set(event.matches.filter(m => m.status === 'scheduled' || m.status === 'completed').map(m => m.round))];
+    const highestScheduledRound = scheduledRounds.length > 0 ? Math.max(...scheduledRounds) : 0;
+    
+    if (highestScheduledRound > 0) {
+        const matchesInCurrentRound = event.matches.filter(m => m.round === highestScheduledRound);
+        isCurrentRoundComplete = matchesInCurrentRound.every(m => m.status === 'completed');
+        
+        const nextRoundInfo = bracket.rounds.find(r => r.roundIndex === highestScheduledRound + 1);
+        if (nextRoundInfo && isCurrentRoundComplete) {
+            showNextRoundButton = true;
+            nextRoundToSchedule = highestScheduledRound + 1;
+        }
+    }
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -389,19 +437,20 @@ export default function SchedulePage() {
         description={`Manage and view the match schedule for this event. There are ${approvedTeams.length} approved teams.`}
       >
         <div className="flex gap-2">
-            <Button onClick={handleGenerateSchedule} disabled={isGenerating || (event.matches && event.matches.length > 0)}>
-            {isGenerating ? (
-                <>
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
-                </>
-            ) : (
-                <>
-                <Bot className="mr-2 h-4 w-4" />
-                Generate Schedule & Bracket
-                </>
+            {showNextRoundButton && nextRoundToSchedule && (
+                 <Button onClick={() => handleGenerateSchedule(nextRoundToSchedule!)} disabled={isGenerating}>
+                    {isGenerating ? (<><Loader className="mr-2 h-4 w-4 animate-spin" />Generating...</>) : (<><GitBranch className="mr-2 h-4 w-4" />Generate Next Round Schedule</>)}
+                </Button>
             )}
-            </Button>
+            {!event.matches || event.matches.length === 0 && (
+                <Button onClick={() => handleGenerateSchedule(1)} disabled={isGenerating}>
+                {isGenerating ? (
+                    <><Loader className="mr-2 h-4 w-4 animate-spin" />Generating...</>
+                ) : (
+                    <><Bot className="mr-2 h-4 w-4" />Generate Schedule & Bracket</>
+                )}
+                </Button>
+            )}
         </div>
       </PageHeader>
       
@@ -459,7 +508,7 @@ export default function SchedulePage() {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 p-0" disabled={match.status === 'unscheduled'}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
@@ -467,7 +516,7 @@ export default function SchedulePage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => handleEditClick(match)}
-                            disabled={match.status === 'completed'}
+                            disabled={match.status === 'completed' || match.status === 'unscheduled'}
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Match
@@ -533,3 +582,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
