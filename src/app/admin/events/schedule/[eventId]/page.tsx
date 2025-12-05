@@ -329,13 +329,31 @@ export default function SchedulePage() {
       const latestEndDate = new Date(event.startDate);
       latestEndDate.setDate(latestEndDate.getDate() + (event.durationDays || 7));
 
+      let earliestStartTime = new Date(new Date(event.startDate).setHours(8, 0, 0, 0));
+
+      if (roundToSchedule > 1) {
+          const prevRoundNumber = roundToSchedule - 1;
+          const prevRoundMatches = event.matches.filter(m => m.round === prevRoundNumber);
+          if (prevRoundMatches.length > 0) {
+              const lastMatchEndTime = prevRoundMatches.reduce((latest, match) => {
+                  const endTime = new Date(match.endTime).getTime();
+                  return endTime > latest ? endTime : latest;
+              }, 0);
+              
+              const dayAfterLastMatch = new Date(lastMatchEndTime);
+              dayAfterLastMatch.setDate(dayAfterLastMatch.getDate() + 1);
+              dayAfterLastMatch.setHours(8, 0, 0, 0); // Start of next day
+              earliestStartTime = dayAfterLastMatch;
+          }
+      }
+      
       const result = await optimizeScheduleWithAI({
           eventId: event.eventId,
           venueAvailability,
           teamPreferences: {},
           timeConstraints: {
-            earliestStartTime: new Date(new Date(event.startDate).setHours(8, 0, 0, 0)).toISOString(),
-            latestEndTime: new Date(new Date(latestEndDate).setHours(18,0,0,0)).toISOString(),
+            earliestStartTime: earliestStartTime.toISOString(),
+            latestEndTime: new Date(latestEndDate.setHours(18,0,0,0)).toISOString(),
           },
           matches: aiInputMatches,
           sports: sportsData,
