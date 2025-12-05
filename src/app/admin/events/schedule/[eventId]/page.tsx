@@ -79,7 +79,8 @@ export default function SchedulePage() {
       const matchId = teamId.substring(7); // remove "winner_"
       const matchIndex = event?.matches.findIndex(m => m.matchId === matchId);
       if (matchIndex !== -1 && matchIndex !== undefined) {
-          return `Winner of Match ${matchIndex + 1}`;
+          const roundName = bracket?.rounds.find(r => r.matches.includes(matchId))?.roundName || "Match";
+          return `Winner of ${roundName.slice(0,-1)} ${matchIndex + 1}`;
       }
        return `Winner of ${matchId.slice(0,4)}...`
     }
@@ -221,7 +222,7 @@ export default function SchedulePage() {
         if (event.settings.format === 'round-robin') {
             const pairs = generateRoundRobinPairs(approvedTeams);
             aiInputMatches = pairs.map((pair, index) => ({
-                matchId: `m${Date.now() + index}`,
+                matchId: `m${Date.now()}-${index}`,
                 ...pair,
                 sportType: event.sportType,
                 round: 1,
@@ -241,7 +242,7 @@ export default function SchedulePage() {
                     if (teamsCount === 2) return 'Final';
                     if (teamsCount === 4) return 'Semifinals';
                     if (teamsCount === 8) return 'Quarterfinals';
-                    return `Round ${roundIndex}`;
+                    return `Round of ${teamsCount}`;
                 }
                 
                 newBracket.rounds.push({ roundIndex, roundName: getRoundName(currentTeams.length), matches: roundMatchIds });
@@ -306,9 +307,27 @@ export default function SchedulePage() {
     }
     
     try {
+        let earliestStartTime = new Date(new Date(event.startDate).setHours(8, 0, 0, 0));
+
+        if (roundToSchedule > 1) {
+            const prevRoundNumber = roundToSchedule - 1;
+            const prevRoundMatches = event.matches.filter(m => m.round === prevRoundNumber);
+            if (prevRoundMatches.length > 0) {
+                const lastMatchEndTime = prevRoundMatches.reduce((latest, match) => {
+                    const endTime = new Date(match.endTime).getTime();
+                    return endTime > latest ? endTime : latest;
+                }, 0);
+                
+                const dayAfterLastMatch = new Date(lastMatchEndTime);
+                dayAfterLastMatch.setDate(dayAfterLastMatch.getDate() + 1);
+                dayAfterLastMatch.setHours(8, 0, 0, 0); // Start of next day
+                earliestStartTime = dayAfterLastMatch;
+            }
+        }
+        
         const venueAvailability = venues.reduce((acc, venue) => {
             const availability = [];
-            const eventStartDate = new Date(event.startDate);
+            const eventStartDate = new Date(earliestStartTime); // Use the correct start date for this round
             for (let i = 0; i < (event.durationDays || 7); i++) {
                 const day = new Date(eventStartDate);
                 day.setDate(day.getDate() + i);
@@ -326,26 +345,8 @@ export default function SchedulePage() {
             return acc;
         }, {} as Record<string, {defaultDurationMinutes: number}>);
       
-      const latestEndDate = new Date(event.startDate);
+      const latestEndDate = new Date(earliestStartTime);
       latestEndDate.setDate(latestEndDate.getDate() + (event.durationDays || 7));
-
-      let earliestStartTime = new Date(new Date(event.startDate).setHours(8, 0, 0, 0));
-
-      if (roundToSchedule > 1) {
-          const prevRoundNumber = roundToSchedule - 1;
-          const prevRoundMatches = event.matches.filter(m => m.round === prevRoundNumber);
-          if (prevRoundMatches.length > 0) {
-              const lastMatchEndTime = prevRoundMatches.reduce((latest, match) => {
-                  const endTime = new Date(match.endTime).getTime();
-                  return endTime > latest ? endTime : latest;
-              }, 0);
-              
-              const dayAfterLastMatch = new Date(lastMatchEndTime);
-              dayAfterLastMatch.setDate(dayAfterLastMatch.getDate() + 1);
-              dayAfterLastMatch.setHours(8, 0, 0, 0); // Start of next day
-              earliestStartTime = dayAfterLastMatch;
-          }
-      }
       
       const result = await optimizeScheduleWithAI({
           eventId: event.eventId,
