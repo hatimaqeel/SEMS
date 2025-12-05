@@ -199,7 +199,12 @@ export default function BracketPage() {
     );
   }
 
-  if (!event || (event.settings.format === 'knockout' && !bracket) || event.matches.length === 0) {
+  const shouldShowBracketError = !event || 
+    (event.settings.format === 'knockout' && !bracket) ||
+    (event.matches && event.matches.length === 0);
+
+
+  if (shouldShowBracketError) {
     return (
        <div className="flex flex-col gap-8">
         <PageHeader
@@ -231,7 +236,7 @@ export default function BracketPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4">
-          {event.settings.format === 'knockout' ? (
+          {event.settings.format === 'knockout' && bracket ? (
             <div className="overflow-x-auto pb-4">
               <div className="flex items-start justify-start gap-12 p-4 min-w-max">
                 {bracket.rounds.map(round => {
