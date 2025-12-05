@@ -199,8 +199,6 @@ export default function BracketPage() {
     );
   }
 
-  // Show "not generated" if there's no event, or if it's knockout and there's no bracket doc,
-  // or if it's either format and there are no matches scheduled.
   if (!event || (event.settings.format === 'knockout' && !bracket) || event.matches.length === 0) {
     return (
        <div className="flex flex-col gap-8">
