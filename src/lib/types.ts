@@ -1,5 +1,6 @@
 
 
+
 export type AppSettings = {
     secretKey: string;
     eventSchedulingWindowMonths?: number;
@@ -69,12 +70,14 @@ export type Match = {
   matchId: string;
   teamAId: string;
   teamBId: string;
+  scoreA?: number;
+  scoreB?: number;
   sportType: string;
   venueId: string;
   startTime: string;
   endTime:string;
   round: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'unscheduled';
+  status: 'scheduled' | 'live' | 'completed' | 'cancelled' | 'unscheduled';
   winnerTeamId?: string;
 };
 
@@ -117,4 +120,5 @@ export type Announcement = {
   type: 'info' | 'warning' | 'success' | 'deadline';
   createdAt: string; // ISO 8601 string
 };
+    
     

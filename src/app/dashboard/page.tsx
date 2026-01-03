@@ -40,6 +40,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
+import { RecentResultsWidget } from '@/components/common/RecentResultsWidget';
 
 const announcementIcons = {
   info: <Info className="h-5 w-5 text-blue-500" />,
@@ -208,6 +209,7 @@ export default function StudentDashboardPage() {
             </CardContent>
           </Card>
            <UpcomingMatchesWidget />
+           <RecentResultsWidget />
         </div>
       </aside>
 
@@ -326,3 +328,5 @@ export default function StudentDashboardPage() {
     </div>
   );
 }
+
+    
