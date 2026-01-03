@@ -41,6 +41,7 @@ import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
 import { RecentResultsWidget } from '@/components/common/RecentResultsWidget';
+import { CalendarWidget } from '@/components/common/CalendarWidget';
 
 const announcementIcons = {
   info: <Info className="h-5 w-5 text-blue-500" />,
@@ -208,6 +209,7 @@ export default function StudentDashboardPage() {
               <p className="text-sm text-muted-foreground">{userData.email}</p>
             </CardContent>
           </Card>
+           <CalendarWidget />
            <UpcomingMatchesWidget />
            <RecentResultsWidget />
         </div>
@@ -328,5 +330,3 @@ export default function StudentDashboardPage() {
     </div>
   );
 }
-
-    
