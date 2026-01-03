@@ -15,10 +15,13 @@ import {z} from 'genkit';
 const OptimizeScheduleWithAIInputSchema = z.object({
   eventId: z.string().describe('The ID of the event to optimize the schedule for.'),
   eventFormat: z.enum(['knockout', 'round-robin']).describe('The format of the tournament.'),
-  venueAvailability: z.record(z.string(), z.array(z.object({
-    startTime: z.string().describe('The start time of the availability slot (ISO format).'),
-    endTime: z.string().describe('The end time of the availability slot (ISO format).'),
-  }))).describe('A map of venue IDs to available time slots.'),
+  venueAvailability: z.record(z.string(), z.object({
+    availability: z.array(z.object({
+        startTime: z.string().describe('The start time of the availability slot (ISO format).'),
+        endTime: z.string().describe('The end time of the availability slot (ISO format).'),
+    })),
+    supportedSports: z.array(z.string()).describe('List of sports this venue can host.'),
+  })).describe('A map of venue IDs to their availability and supported sports.'),
   teamPreferences: z.record(z.string(), z.array(z.string())).describe('A map of team IDs to preferred venue IDs.'),
   timeConstraints: z.object({
     earliestStartTime: z.string().describe('The earliest start time for any match (ISO format).'),
@@ -67,11 +70,12 @@ const prompt = ai.definePrompt({
 **EVENT FORMAT: {{{eventFormat}}}**
 
 **GLOBAL CONSTRAINTS:**
-1.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
-2.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time.
-3.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
-4.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
-5.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
+1.  **Venue Suitability**: You MUST only schedule a match in a venue that supports the sport type of the match. For example, a 'Cricket' match can only be in a venue that lists 'Cricket' in its supportedSports.
+2.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
+3.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time.
+4.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
+5.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
+6.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
 
 **FORMAT-SPECIFIC CONSTRAINTS:**
 
@@ -90,7 +94,8 @@ Event ID: {{{eventId}}}
 Venue Availability:
 {{#each venueAvailability}}
   - Venue ID: {{@key}}
-    - Availability: {{#each this}} Start: {{{startTime}}}, End: {{{endTime}}} {{/each}}
+    - Supported Sports: {{#each this.supportedSports}}{{{this}}}{{/each}}
+    - Availability: {{#each this.availability}} Start: {{{startTime}}}, End: {{{endTime}}} {{/each}}
 {{/each}}
 
 Matches to Schedule (for the current round):

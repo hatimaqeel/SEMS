@@ -23,38 +23,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Generates a full round-robin schedule structure using the circle method.
 function generateRoundRobinAllRounds(teams: Team[]): { round: number, pairs: { teamAId: string, teamBId: string }[] }[] {
-  let participants = [...teams];
-  // If odd number of teams, add a dummy "bye" team
-  if (participants.length % 2 !== 0) {
-    participants.push({ teamId: 'BYE', teamName: 'BYE', department: '', players: [], sportType: '' });
-  }
-
-  const n = participants.length;
-  const rounds: { round: number, pairs: { teamAId: string, teamBId: string }[] }[] = [];
-  const schedule: { home: Team, away: Team }[][] = [];
-
-  for (let round = 0; round < n - 1; round++) {
-    const roundMatches: { teamAId: string, teamBId: string }[] = [];
-    for (let i = 0; i < n / 2; i++) {
-      const teamA = participants[i];
-      const teamB = participants[n - 1 - i];
-      if (teamA.teamId !== 'BYE' && teamB.teamId !== 'BYE') {
-        // Randomly assign who is teamA vs teamB
-        if (Math.random() > 0.5) {
-            roundMatches.push({ teamAId: teamA.teamId, teamBId: teamB.teamId });
-        } else {
-            roundMatches.push({ teamAId: teamB.teamId, teamBId: teamA.teamId });
-        }
-      }
+    let participants = [...teams];
+    // If odd number of teams, add a dummy "bye" team
+    if (participants.length % 2 !== 0) {
+        participants.push({ teamId: 'BYE', teamName: 'BYE', department: '', players: [], sportType: '' });
     }
-    rounds.push({ round: round + 1, pairs: roundMatches });
 
-    // Rotate participants for next round, keeping first team fixed
-    const lastTeam = participants.pop();
-    if(lastTeam) participants.splice(1, 0, lastTeam);
-  }
+    const n = participants.length;
+    const rounds: { round: number, pairs: { teamAId: string, teamBId: string }[] }[] = [];
+    
+    for (let round = 0; round < n - 1; round++) {
+        const roundMatches: { teamAId: string, teamBId: string }[] = [];
+        for (let i = 0; i < n / 2; i++) {
+        const teamA = participants[i];
+        const teamB = participants[n - 1 - i];
+        if (teamA.teamId !== 'BYE' && teamB.teamId !== 'BYE') {
+            // To ensure fair home/away, alternate who is teamA
+            if (i % 2 === 0) {
+                roundMatches.push({ teamAId: teamA.teamId, teamBId: teamB.teamId });
+            } else {
+                roundMatches.push({ teamAId: teamB.teamId, teamBId: teamA.teamId });
+            }
+        }
+        }
+        rounds.push({ round: round + 1, pairs: roundMatches });
 
-  return rounds;
+        // Rotate participants for next round, keeping first team fixed
+        const lastTeam = participants.pop();
+        if(lastTeam) participants.splice(1, 0, lastTeam);
+    }
+
+    return rounds;
 }
 
 
@@ -369,7 +368,15 @@ export default function SchedulePage() {
             }
         }
         
-        const venueAvailability = venues.reduce((acc, venue) => {
+        const sportSpecificVenues = venues.filter(v => v.supportedSports?.includes(event.sportType));
+
+        if (sportSpecificVenues.length === 0) {
+            setGenerationError(`No venues available that support ${event.sportType}. Please update your venues.`);
+            setIsGenerating(false);
+            return;
+        }
+
+        const venueAvailability = sportSpecificVenues.reduce((acc, venue) => {
             const availability = [];
             const roundStartDate = new Date(earliestStartTime);
             for (let i = 0; i < (event.durationDays || 7); i++) {
@@ -380,9 +387,13 @@ export default function SchedulePage() {
                     endTime: new Date(day.setHours(18, 0, 0, 0)).toISOString(),
                 });
             }
-            acc[venue.id!] = availability;
+            acc[venue.id!] = {
+                availability,
+                supportedSports: venue.supportedSports || []
+            };
             return acc;
-        }, {} as Record<string, {startTime: string, endTime: string}[]>);
+        }, {} as OptimizeScheduleWithAIInput['venueAvailability']);
+
 
         const sportsData = sports.reduce((acc, sport) => {
             acc[sport.sportName] = { defaultDurationMinutes: sport.defaultDurationMinutes };
@@ -608,7 +619,7 @@ export default function SchedulePage() {
                   <SelectValue placeholder="Select a venue" />
                 </SelectTrigger>
                 <SelectContent>
-                  {venues?.map(venue => (
+                  {venues?.filter(v => v.supportedSports.includes(event.sportType)).map(venue => (
                     <SelectItem key={venue.id!} value={venue.id!}>
                       {venue.name}
                     </SelectItem>

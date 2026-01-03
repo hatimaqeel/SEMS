@@ -19,6 +19,7 @@ export type Venue = {
   name: string;
   location: string;
   capacity: number;
+  supportedSports: string[]; // List of sport names
   reservations: {
     matchId: string;
     startTime: string;
@@ -73,7 +74,7 @@ export type Match = {
   startTime: string;
   endTime:string;
   round: number;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'unscheduled';
   winnerTeamId?: string;
 };
 

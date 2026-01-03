@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
-import type { Venue } from '@/lib/types';
+import type { Venue, Sport } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { MoreHorizontal, PlusCircle, Edit, Trash, Calendar } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Edit, Trash, Calendar, Dices } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +45,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 export default function VenuesPage() {
@@ -59,14 +60,19 @@ export default function VenuesPage() {
   const [venueName, setVenueName] = useState('');
   const [location, setLocation] = useState('');
   const [capacity, setCapacity] = useState('');
+  const [supportedSports, setSupportedSports] = useState<string[]>([]);
 
   const venuesRef = useMemoFirebase(() => collection(firestore, 'venues'), [firestore]);
   const { data: venues, isLoading } = useCollection<Venue>(venuesRef);
+  
+  const sportsRef = useMemoFirebase(() => collection(firestore, 'sports'), [firestore]);
+  const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
 
   const clearForm = () => {
     setVenueName('');
     setLocation('');
     setCapacity('');
+    setSupportedSports([]);
   }
 
   const handleAddClick = () => {
@@ -80,6 +86,7 @@ export default function VenuesPage() {
     setVenueName(venue.name);
     setLocation(venue.location);
     setCapacity(venue.capacity.toString());
+    setSupportedSports(venue.supportedSports || []);
     setIsFormOpen(true);
   };
 
@@ -115,7 +122,7 @@ export default function VenuesPage() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'All fields are required.',
+        description: 'All fields except supported sports are required.',
       });
       return;
     }
@@ -125,6 +132,7 @@ export default function VenuesPage() {
         name: venueName,
         location,
         capacity: parseInt(capacity, 10),
+        supportedSports: supportedSports,
         reservations: selectedVenue?.reservations || [],
     };
 
@@ -177,6 +185,7 @@ export default function VenuesPage() {
               <TableRow>
                 <TableHead>Venue Name</TableHead>
                 <TableHead>Location</TableHead>
+                <TableHead>Supported Sports</TableHead>
                 <TableHead>Capacity</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -186,13 +195,16 @@ export default function VenuesPage() {
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">Loading venues...</TableCell>
+                  <TableCell colSpan={5} className="text-center">Loading venues...</TableCell>
                 </TableRow>
               )}
               {venues && venues.map((venue) => (
                 <TableRow key={venue.id}>
                   <TableCell className="font-medium">{venue.name}</TableCell>
                   <TableCell>{venue.location}</TableCell>
+                   <TableCell className="max-w-[200px] truncate">
+                    {venue.supportedSports?.join(', ') || 'Not specified'}
+                  </TableCell>
                   <TableCell>{venue.capacity.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -246,6 +258,27 @@ export default function VenuesPage() {
             <div className="grid gap-2">
               <Label htmlFor="capacity">Capacity</Label>
               <Input id="capacity" type="number" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="e.g., 5000" disabled={isSubmitting}/>
+            </div>
+            <div className="grid gap-4">
+                <Label>Supported Sports</Label>
+                {isLoadingSports ? <p>Loading sports...</p> : (
+                    <div className="grid grid-cols-2 gap-2 rounded-lg border p-4">
+                        {sports?.map(sport => (
+                            <div key={sport.sportId} className="flex items-center gap-2">
+                                <Checkbox 
+                                    id={sport.sportId}
+                                    checked={supportedSports.includes(sport.sportName)}
+                                    onCheckedChange={(checked) => {
+                                        return checked
+                                            ? setSupportedSports(prev => [...prev, sport.sportName])
+                                            : setSupportedSports(prev => prev.filter(s => s !== sport.sportName))
+                                    }}
+                                />
+                                <Label htmlFor={sport.sportId} className="font-normal">{sport.sportName}</Label>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Saving...' : 'Save Venue'}

@@ -53,6 +53,13 @@
           "type": "number",
           "description": "The capacity of the venue."
         },
+        "supportedSports": {
+          "type": "array",
+          "description": "A list of sport names that this venue can host.",
+          "items": {
+            "type": "string"
+          }
+        },
         "reservations": {
           "type": "array",
           "description": "A list of reservations for the venue.",
@@ -66,6 +73,7 @@
         "name",
         "location",
         "capacity",
+        "supportedSports",
         "reservations"
       ]
     },
@@ -617,5 +625,4 @@
     "reasoning": "The Firestore structure is designed to support a sports event management system, SEMS, with a focus on clear authorization, scalability, and maintainability. Authorization Independence is achieved by denormalizing role information into user documents and event-specific access control lists within each event's subcollections where needed. Path-based ownership is used for user-specific data, such as user profiles. For collaborative data like events and matches, a membership map (`members`) is used where appropriate. This structure avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging. Segregation of data based on access needs (e.g., public events versus admin-managed events) simplifies security rules. QAPs are supported through structural segregation and controlled access via role-based permissions. For example, only admins can `create`, `update`, or `delete` events, while users can `read` public event data and, in some cases, create teams or register for events if their role permits."
   }
 }
-
     
