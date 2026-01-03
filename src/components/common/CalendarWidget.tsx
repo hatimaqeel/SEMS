@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -6,7 +7,7 @@ import type { Event, Match } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { Loader } from 'lucide-radix';
+import { Loader } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { isSameDay, parseISO } from 'date-fns';
 import { DateEventsPopover } from './DateEventsPopover';
