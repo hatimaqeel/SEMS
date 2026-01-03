@@ -1,9 +1,8 @@
 'use client';
 
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   ChartTooltipContent,
-  ChartContainer,
 } from '@/components/ui/chart';
 import { Skeleton } from '../ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -19,8 +18,9 @@ interface VictoriesChartProps {
 }
 
 export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartProps) {
-  const barWidth = 100; // Increased width for better spacing
-  const chartWidth = data ? data.length * barWidth : 0;
+  
+  const barWidth = 80;
+  const chartMinWidth = data ? data.length * barWidth : 0;
 
   return (
      <Card>
@@ -41,39 +41,35 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
               </div>
             ) : (
                 <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
-                    <ChartContainer
-                      config={{
-                        victories: {
-                          label: 'Victories',
-                          color: 'hsl(var(--primary))',
-                        },
-                      }}
-                      style={{ height: '350px', width: `${chartWidth}px`, minWidth: '100%' }}
-                    >
-                        <BarChart data={data} margin={{ top: 20, right: 20, bottom: 40, left: 20 }}>
-                          <XAxis
-                            dataKey="name"
-                            stroke="#888888"
-                            fontSize={12}
-                            tickLine={false}
-                            axisLine={false}
-                            interval={0}
-                          />
-                          <YAxis
-                            stroke="#888888"
-                            fontSize={12}
-                            tickLine={false}
-                            axisLine={false}
-                            allowDecimals={false}
-                            tickFormatter={(value) => `${value}`}
-                          />
-                          <Tooltip
-                            cursor={{ fill: 'hsl(var(--muted))' }}
-                            content={<ChartTooltipContent />}
-                          />
-                          <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} />
+                    <ResponsiveContainer width={chartMinWidth < 500 ? '100%' : chartMinWidth} height={350}>
+                        <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                            <XAxis
+                                dataKey="name"
+                                stroke="hsl(var(--muted-foreground))"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                interval={0}
+                            />
+                            <YAxis
+                                stroke="hsl(var(--muted-foreground))"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                allowDecimals={false}
+                            />
+                            <Tooltip
+                                cursor={{ fill: 'hsl(var(--muted))' }}
+                                content={<ChartTooltipContent 
+                                    formatter={(value) => [`${value} victories`, '']}
+                                    labelClassName="font-bold"
+                                    indicator='dot'
+                                />}
+                            />
+                            <Bar dataKey="victories" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                         </BarChart>
-                    </ChartContainer>
+                    </ResponsiveContainer>
                 </div>
             )}
         </CardContent>
