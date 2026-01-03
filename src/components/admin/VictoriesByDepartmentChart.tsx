@@ -19,8 +19,8 @@ interface VictoriesChartProps {
 }
 
 export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartProps) {
-  const barWidth = 80;
-  const chartWidth = (data?.length || 0) * barWidth;
+  const barWidth = 100; // Increased width for better spacing
+  const chartWidth = data ? data.length * barWidth : 0;
 
   return (
      <Card>
@@ -40,17 +40,17 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                 No victory data available yet.
               </div>
             ) : (
-                <div className="overflow-x-auto">
-                    <ResponsiveContainer width={Math.max(chartWidth, '100%')} height={350}>
-                      <ChartContainer
-                        config={{
-                          victories: {
-                            label: 'Victories',
-                            color: 'hsl(var(--primary))',
-                          },
-                        }}
-                      >
-                        <BarChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+                    <ChartContainer
+                      config={{
+                        victories: {
+                          label: 'Victories',
+                          color: 'hsl(var(--primary))',
+                        },
+                      }}
+                      style={{ height: '350px', width: `${chartWidth}px`, minWidth: '100%' }}
+                    >
+                        <BarChart data={data} margin={{ top: 20, right: 20, bottom: 40, left: 20 }}>
                           <XAxis
                             dataKey="name"
                             stroke="#888888"
@@ -73,8 +73,7 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                           />
                           <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} />
                         </BarChart>
-                      </ChartContainer>
-                    </ResponsiveContainer>
+                    </ChartContainer>
                 </div>
             )}
         </CardContent>
