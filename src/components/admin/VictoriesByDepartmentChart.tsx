@@ -19,6 +19,9 @@ interface VictoriesChartProps {
 }
 
 export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartProps) {
+  const barWidth = 80;
+  const chartWidth = (data?.length || 0) * barWidth;
+
   return (
      <Card>
         <CardHeader>
@@ -37,43 +40,42 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                 No victory data available yet.
               </div>
             ) : (
-                <ResponsiveContainer width="100%" height={350}>
-                  <ChartContainer
-                    config={{
-                      victories: {
-                        label: 'Victories',
-                        color: 'hsl(var(--primary))',
-                      },
-                    }}
-                  >
-                    <BarChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                      <XAxis
-                        dataKey="name"
-                        stroke="#888888"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                        interval={0}
-                      />
-                      <YAxis
-                        stroke="#888888"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        allowDecimals={false}
-                        tickFormatter={(value) => `${value}`}
-                      />
-                      <Tooltip
-                        cursor={{ fill: 'hsl(var(--muted))' }}
-                        content={<ChartTooltipContent />}
-                      />
-                      <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                </ResponsiveContainer>
+                <div className="overflow-x-auto">
+                    <ResponsiveContainer width={Math.max(chartWidth, '100%')} height={350}>
+                      <ChartContainer
+                        config={{
+                          victories: {
+                            label: 'Victories',
+                            color: 'hsl(var(--primary))',
+                          },
+                        }}
+                      >
+                        <BarChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                          <XAxis
+                            dataKey="name"
+                            stroke="#888888"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            interval={0}
+                          />
+                          <YAxis
+                            stroke="#888888"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            allowDecimals={false}
+                            tickFormatter={(value) => `${value}`}
+                          />
+                          <Tooltip
+                            cursor={{ fill: 'hsl(var(--muted))' }}
+                            content={<ChartTooltipContent />}
+                          />
+                          <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ChartContainer>
+                    </ResponsiveContainer>
+                </div>
             )}
         </CardContent>
      </Card>
