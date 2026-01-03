@@ -21,8 +21,8 @@ interface VictoriesChartProps {
 
 export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartProps) {
   
-  const barWidth = 80;
-  const chartMinWidth = data ? data.length * barWidth : 0;
+  const barCategoryWidth = 120; // Increased width for better spacing
+  const chartMinWidth = data ? data.length * barCategoryWidth : 0;
 
   return (
      <Card>
@@ -52,7 +52,7 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                       }}
                       className="min-h-[350px]"
                     >
-                      <ResponsiveContainer width={chartMinWidth < 500 ? '100%' : chartMinWidth} height={350}>
+                      <ResponsiveContainer width="100%" height={350} minWidth={chartMinWidth}>
                           <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                               <XAxis
@@ -78,7 +78,7 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                                       indicator='dot'
                                   />}
                               />
-                              <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} barSize={60} />
                           </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
