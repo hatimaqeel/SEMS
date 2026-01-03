@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
 import {
   ChartContainer,
   ChartTooltipContent,
@@ -21,8 +21,7 @@ interface VictoriesChartProps {
 
 export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartProps) {
   
-  const barCategoryWidth = 120; // Increased width for better spacing
-  const chartMinWidth = data ? data.length * barCategoryWidth : 0;
+  const chartHeight = data ? `${data.length * 40 + 60}px` : '350px';
 
   return (
      <Card>
@@ -32,7 +31,7 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
               A chart showing which department has the most victories across all events.
             </CardDescription>
         </CardHeader>
-        <CardContent className="pl-2">
+        <CardContent className="pr-0">
             {isLoading ? (
               <div className="h-[350px] w-full p-2">
                 <Skeleton className="h-full w-full" />
@@ -42,47 +41,37 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                 No victory data available yet.
               </div>
             ) : (
-                <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
-                    <ChartContainer
-                      config={{
-                        victories: {
-                          label: 'Victories',
-                          color: 'hsl(var(--primary))',
-                        },
-                      }}
-                      className="min-h-[350px]"
+                <ResponsiveContainer width="100%" height={chartHeight}>
+                    <BarChart
+                      layout="vertical"
+                      data={data}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                     >
-                      <ResponsiveContainer width="100%" height={350} minWidth={chartMinWidth}>
-                          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                              <XAxis
-                                  dataKey="name"
-                                  stroke="hsl(var(--muted-foreground))"
-                                  fontSize={12}
-                                  tickLine={false}
-                                  axisLine={false}
-                                  interval={0}
-                              />
-                              <YAxis
-                                  stroke="hsl(var(--muted-foreground))"
-                                  fontSize={12}
-                                  tickLine={false}
-                                  axisLine={false}
-                                  allowDecimals={false}
-                              />
-                              <Tooltip
-                                  cursor={{ fill: 'hsl(var(--muted))' }}
-                                  content={<ChartTooltipContent 
-                                      formatter={(value) => [`${value} victories`, '']}
-                                      labelClassName="font-bold"
-                                      indicator='dot'
-                                  />}
-                              />
-                              <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} barSize={60} />
-                          </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                </div>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        width={120}
+                        interval={0}
+                      />
+                      <Tooltip
+                          cursor={{ fill: 'hsl(var(--muted))' }}
+                          content={<ChartTooltipContent 
+                              formatter={(value, name) => [value, 'Victories']}
+                              labelClassName="font-bold"
+                              indicator='dot'
+                          />}
+                      />
+                       <Bar dataKey="victories" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                         <LabelList dataKey="victories" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                       </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
             )}
         </CardContent>
      </Card>
