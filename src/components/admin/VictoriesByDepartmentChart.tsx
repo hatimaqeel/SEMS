@@ -1,7 +1,9 @@
+
 'use client';
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
+  ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Skeleton } from '../ui/skeleton';
@@ -41,35 +43,45 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
               </div>
             ) : (
                 <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
-                    <ResponsiveContainer width={chartMinWidth < 500 ? '100%' : chartMinWidth} height={350}>
-                        <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                            <XAxis
-                                dataKey="name"
-                                stroke="hsl(var(--muted-foreground))"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                interval={0}
-                            />
-                            <YAxis
-                                stroke="hsl(var(--muted-foreground))"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                allowDecimals={false}
-                            />
-                            <Tooltip
-                                cursor={{ fill: 'hsl(var(--muted))' }}
-                                content={<ChartTooltipContent 
-                                    formatter={(value) => [`${value} victories`, '']}
-                                    labelClassName="font-bold"
-                                    indicator='dot'
-                                />}
-                            />
-                            <Bar dataKey="victories" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <ChartContainer
+                      config={{
+                        victories: {
+                          label: 'Victories',
+                          color: 'hsl(var(--primary))',
+                        },
+                      }}
+                      className="min-h-[350px]"
+                    >
+                      <ResponsiveContainer width={chartMinWidth < 500 ? '100%' : chartMinWidth} height={350}>
+                          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                              <XAxis
+                                  dataKey="name"
+                                  stroke="hsl(var(--muted-foreground))"
+                                  fontSize={12}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  interval={0}
+                              />
+                              <YAxis
+                                  stroke="hsl(var(--muted-foreground))"
+                                  fontSize={12}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  allowDecimals={false}
+                              />
+                              <Tooltip
+                                  cursor={{ fill: 'hsl(var(--muted))' }}
+                                  content={<ChartTooltipContent 
+                                      formatter={(value) => [`${value} victories`, '']}
+                                      labelClassName="font-bold"
+                                      indicator='dot'
+                                  />}
+                              />
+                              <Bar dataKey="victories" fill="var(--color-victories)" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
                 </div>
             )}
         </CardContent>
