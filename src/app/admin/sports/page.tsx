@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -117,6 +118,22 @@ export default function SportsPage() {
       });
       return;
     }
+
+    const isDuplicate = sports?.some(
+      (sport) =>
+        sport.sportName.toLowerCase() === sportName.toLowerCase() &&
+        sport.sportId !== selectedSport?.sportId
+    );
+
+    if (isDuplicate) {
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate Sport',
+        description: 'A sport with this name already exists.',
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     const sportData = {
@@ -135,7 +152,7 @@ export default function SportsPage() {
         });
       } else {
         const newDocRef = doc(collection(firestore, 'sports'));
-        await setDoc(newDocRef, { ...sportData, sportId: newDocRef.id });
+        await setDoc(newDocRef, { ...sportData, id: newDocRef.id, sportId: newDocRef.id });
         toast({
           title: 'Sport Created',
           description: `"${sportName}" has been successfully created.`,
