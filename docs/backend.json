@@ -419,6 +419,37 @@
         }
       },
       "required": ["id", "rounds"]
+    },
+     "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents a system-wide announcement.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the announcement."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the announcement."
+        },
+        "description": {
+          "type": "string",
+          "description": "The main content of the announcement."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of announcement.",
+          "enum": ["info", "warning", "success", "deadline"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the announcement was created.",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "description", "type", "createdAt"]
     }
   },
   "auth": {
@@ -617,6 +648,22 @@
             {
               "name": "eventId",
               "description": "Unique identifier for the event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": {
+            "$ref": "#/backend/entities/Announcement"
+          },
+          "description": "Stores global announcements for all users to see.",
+          "params": [
+            {
+              "name": "announcementId",
+              "description": "Unique identifier for the announcement."
             }
           ]
         }

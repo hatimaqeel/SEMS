@@ -15,14 +15,15 @@
  * - /events/{eventId}/logs/{logId}: Log entries for events.
  * - /brackets/{eventId}: Tournament bracket data for an event.
  * - /settings/{settingId}: Global application settings.
+ * - /announcements/{announcementId}: Global announcements.
  *
  * Key Security Decisions:
  * - Super Admin (sems.cust@outlook.com) has full CRUD access to all data.
- * - Admins can manage sports, venues, departments, events, and student user accounts. They cannot manage other admin accounts.
+ * - Admins can manage sports, venues, departments, events, announcements, and student user accounts. They cannot manage other admin accounts.
  * - Students can read public data and manage their own profiles.
  *
  * Access Control Patterns:
- * - Sports, Venues, Departments, Events, Brackets: Public read, admin/super-admin write.
+ * - Sports, Venues, Departments, Events, Brackets, Announcements: Public read, admin/super-admin write.
  * - Teams, Matches: Event-scoped access.
  * - Users: Owner-only access for read/write. Admins can manage students. Super Admin can manage anyone except themselves.
  * - UserProfiles: Admin/Super Admin can create. Owner can read and delete.
@@ -82,6 +83,11 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow get, list: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
       allow create, update, delete: if isRequestingUserSuperAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isRequestingUserAdmin() || isRequestingUserSuperAdmin();
     }
 
     match /events/{eventId} {

@@ -22,12 +22,14 @@ import {
   Settings,
   LogOut,
   Building,
+  Megaphone,
 } from "lucide-react";
 import { useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 
 const mainNavItems = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/admin/announcements", icon: Megaphone, label: "Announcements" },
   { href: "/admin/events", icon: Calendar, label: "Manage Events" },
   { href: "/admin/sports", icon: Trophy, label: "Manage Sports" },
   { href: "/admin/venues", icon: MapPin, label: "Manage Venues" },

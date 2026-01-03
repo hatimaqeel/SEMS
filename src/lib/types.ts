@@ -110,4 +110,11 @@ export type Bracket = {
   }[];
 };
 
+export type Announcement = {
+  id: string;
+  title: string;
+  description: string;
+  type: 'info' | 'warning' | 'success' | 'deadline';
+  createdAt: string; // ISO 8601 string
+};
     

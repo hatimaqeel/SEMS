@@ -1,6 +1,7 @@
+
 'use client';
 
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
 import {
   ArrowRight,
   Calendar,
@@ -10,6 +11,11 @@ import {
   Loader,
   MapPin,
   XCircle,
+  Megaphone,
+  Info,
+  AlertTriangle,
+  Award,
+  CalendarClock
 } from 'lucide-react';
 import {
   useCollection,
@@ -19,7 +25,7 @@ import {
   useUser,
 } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { Event, User, JoinRequest } from '@/lib/types';
+import type { Event, User, JoinRequest, Announcement } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +39,14 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEffect, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+
+const announcementIcons = {
+  info: <Info className="h-5 w-5 text-blue-500" />,
+  warning: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
+  success: <Award className="h-5 w-5 text-green-500" />,
+  deadline: <CalendarClock className="h-5 w-5 text-red-500" />,
+};
 
 export default function StudentDashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -48,6 +62,14 @@ export default function StudentDashboardPage() {
 
   const eventsRef = useMemoFirebase(() => collection(firestore, 'events'), [firestore]);
   const { data: events, isLoading: isLoadingEvents } = useCollection<Event>(eventsRef);
+
+  const announcementsRef = useMemoFirebase(() => query(
+    collection(firestore, 'announcements'),
+    orderBy('createdAt', 'desc'),
+    limit(5)
+  ), [firestore]);
+  const { data: announcements, isLoading: isLoadingAnnouncements } = useCollection<Announcement>(announcementsRef);
+
 
   const [myRequestsByEvent, setMyRequestsByEvent] = useState<Record<string, JoinRequest | null>>({});
   const [isLoadingMyRequests, setIsLoadingMyRequests] = useState(true);
@@ -113,7 +135,7 @@ export default function StudentDashboardPage() {
     });
   };
 
-  const isLoading = isUserLoading || isUserDataLoading || isLoadingEvents || isLoadingMyRequests;
+  const isLoading = isUserLoading || isUserDataLoading || isLoadingEvents || isLoadingMyRequests || isLoadingAnnouncements;
 
   if (isLoading) {
     return (
@@ -185,7 +207,7 @@ export default function StudentDashboardPage() {
               <p className="text-sm text-muted-foreground">{userData.email}</p>
             </CardContent>
           </Card>
-          <Card className="bg-card/50 border-border/50">
+           <Card className="bg-card/50 border-border/50">
             <CardHeader>
                 <CardTitle className="text-lg font-semibold">My Details</CardTitle>
             </CardHeader>
@@ -213,6 +235,33 @@ export default function StudentDashboardPage() {
 
       {/* Right Column */}
       <div className="md:col-span-8 lg:col-span-9 space-y-12">
+         <section>
+          <h2 className="text-3xl font-bold tracking-tight font-headline mb-6">Latest Announcements</h2>
+           {announcements && announcements.length > 0 ? (
+            <div className="space-y-4">
+              {announcements.map((item) => (
+                <div key={item.id} className="flex items-start gap-4 p-4 rounded-lg bg-card border">
+                  <div className="flex-shrink-0 pt-1">
+                    {announcementIcons[item.type]}
+                  </div>
+                  <div className="flex-grow">
+                    <p className="font-semibold text-foreground">{item.title}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                  </div>
+                  <div className="flex-shrink-0 text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 px-6 bg-muted/50 rounded-lg">
+                <p className="text-muted-foreground">No new announcements right now.</p>
+                <p className="text-sm text-muted-foreground/80 mt-1">Check back later for updates!</p>
+            </div>
+          )}
+        </section>
+
         <section>
           <h2 className="text-3xl font-bold tracking-tight font-headline mb-6">My Registrations</h2>
           {myRequestEvents.length > 0 ? (
