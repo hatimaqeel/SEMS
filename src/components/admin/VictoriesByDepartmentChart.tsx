@@ -53,6 +53,10 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                        interval={0}
                       />
                       <YAxis
                         stroke="#888888"
