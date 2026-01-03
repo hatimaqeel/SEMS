@@ -21,8 +21,6 @@ interface VictoriesChartProps {
 
 export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartProps) {
   
-  const chartHeight = data ? `${data.length * 40 + 60}px` : '350px';
-
   return (
      <Card>
         <CardHeader>
@@ -31,7 +29,7 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
               A chart showing which department has the most victories across all events.
             </CardDescription>
         </CardHeader>
-        <CardContent className="pr-0">
+        <CardContent>
             {isLoading ? (
               <div className="h-[350px] w-full p-2">
                 <Skeleton className="h-full w-full" />
@@ -41,37 +39,54 @@ export function VictoriesByDepartmentChart({ data, isLoading }: VictoriesChartPr
                 No victory data available yet.
               </div>
             ) : (
-                <ResponsiveContainer width="100%" height={chartHeight}>
+              <ResponsiveContainer width="100%" height={350}>
+                <ChartContainer
+                    config={{
+                    victories: {
+                        label: 'Victories',
+                        color: 'hsl(var(--primary))',
+                    },
+                    }}
+                >
                     <BarChart
-                      layout="vertical"
-                      data={data}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    data={data}
+                    margin={{
+                        top: 20,
+                        right: 20,
+                        bottom: 20,
+                        left: 20,
+                    }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis
-                        type="category"
+                    <CartesianGrid vertical={false} />
+                    <XAxis
                         dataKey="name"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        width={120}
-                        interval={0}
-                      />
-                      <Tooltip
-                          cursor={{ fill: 'hsl(var(--muted))' }}
-                          content={<ChartTooltipContent 
-                              formatter={(value, name) => [value, 'Victories']}
-                              labelClassName="font-bold"
-                              indicator='dot'
-                          />}
-                      />
-                       <Bar dataKey="victories" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
-                         <LabelList dataKey="victories" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                       </Bar>
+                    />
+                    <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        allowDecimals={false}
+                    />
+                    <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted))' }}
+                        content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    <Bar dataKey="victories" fill="hsl(var(--primary))" radius={4}>
+                        <LabelList
+                        position="top"
+                        offset={4}
+                        className="fill-foreground"
+                        fontSize={12}
+                        />
+                    </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
+                </ChartContainer>
+              </ResponsiveContainer>
             )}
         </CardContent>
      </Card>
