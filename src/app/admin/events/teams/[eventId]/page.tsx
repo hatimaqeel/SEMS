@@ -123,10 +123,12 @@ export default function ManageTeamsPage() {
     if (!teamName || !teamDepartment || !event) return;
     setIsSubmitting(true);
 
+    const departmentName = departments?.find(d => d.id === teamDepartment)?.name || teamDepartment;
+
     const newTeam: Omit<Team, 'id'> = {
       teamId: doc(collection(firestore, 'temp')).id,
       teamName,
-      department: teamDepartment,
+      department: departmentName,
       players: [], 
       sportType: event.sportType,
       status: 'approved',
@@ -311,7 +313,7 @@ export default function ManageTeamsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {departments?.map(dept => (
-                       <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                       <SelectItem key={dept.id} value={dept.id!}>{dept.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

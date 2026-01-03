@@ -89,6 +89,7 @@ export function EventForm({
           ...initialData,
           startDate: new Date(initialData.startDate),
           format: initialData.settings.format,
+          department: departments.find(d => d.name === initialData.department)?.id || initialData.department,
         }
       : {
           name: '',
@@ -161,7 +162,7 @@ export function EventForm({
                   <SelectContent>
                      <SelectItem value="All Departments">All Departments</SelectItem>
                     {departments.map(dept => (
-                      <SelectItem key={dept.id} value={dept.name}>
+                      <SelectItem key={dept.id} value={dept.id!}>
                         {dept.name}
                       </SelectItem>
                     ))}

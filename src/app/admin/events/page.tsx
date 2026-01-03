@@ -104,10 +104,12 @@ export default function EventsPage() {
   const handleFormSubmit = async (values: EventFormValues) => {
     setIsSubmitting(true);
 
+    const departmentName = departments?.find(d => d.id === values.department)?.name || values.department;
+
     const eventData = {
       name: values.name,
       sportType: values.sportType,
-      department: values.department,
+      department: departmentName,
       startDate: values.startDate.toISOString().split('T')[0],
       startTime: values.startTime,
       description: values.description,

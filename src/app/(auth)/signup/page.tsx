@@ -90,13 +90,15 @@ export default function SignupPage() {
     try {
       const userCredential = await initiateEmailSignUp(auth, email, password);
       const user = userCredential.user;
+      
+      const departmentName = departments?.find(d => d.id === department)?.name || '';
 
       // Store the profile details in userProfiles collection
       const profileData = {
         displayName: name,
         email: email,
         role: 'student',
-        dept: department,
+        dept: departmentName,
         registrationNumber: regNumber,
         gender: gender,
       };
@@ -167,7 +169,7 @@ export default function SignupPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {departments?.map(dept => (
-                      <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                      <SelectItem key={dept.id} value={dept.id!}>{dept.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

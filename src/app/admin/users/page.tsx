@@ -313,12 +313,13 @@ export default function UsersPage() {
     try {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newUser = userCredential.user;
+        const departmentName = departments?.find(d => d.id === department)?.name || department;
 
         const profileData: any = {
           displayName: name,
           email: email,
           role,
-          dept: department,
+          dept: departmentName,
         };
 
         if (role === 'student') {
@@ -361,7 +362,8 @@ export default function UsersPage() {
   const handleEditUserClick = (user: User) => {
     setSelectedUser(user);
     setEditName(user.displayName);
-    setEditDept(user.dept);
+    const departmentId = departments?.find(d => d.name === user.dept)?.id || '';
+    setEditDept(departmentId);
     setEditReg(user.registrationNumber || '');
     setEditFacultyId(user.facultyId || '');
     setIsEditUserOpen(true);
@@ -374,9 +376,10 @@ export default function UsersPage() {
 
     const userDocRef = doc(firestore, 'users', selectedUser.userId);
     try {
+      const departmentName = departments?.find(d => d.id === editDept)?.name || editDept;
       const dataToUpdate: Partial<User> = {
         displayName: editName,
-        dept: editDept,
+        dept: departmentName,
       };
 
       if (selectedUser.role === 'student') {
@@ -604,7 +607,7 @@ export default function UsersPage() {
                         </SelectTrigger>
                         <SelectContent>
                             {departments?.map(dept => (
-                            <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                            <SelectItem key={dept.id} value={dept.id!}>{dept.name}</SelectItem>
                             ))}
                         </SelectContent>
                         </Select>
@@ -665,7 +668,7 @@ export default function UsersPage() {
                 <Select onValueChange={setEditDept} value={editDept} required disabled={isSubmitting || isLoadingDepts}>
                     <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>
-                        {departments?.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                        {departments?.map(d => <SelectItem key={d.id} value={d.id!}>{d.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>
