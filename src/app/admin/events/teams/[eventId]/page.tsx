@@ -123,6 +123,20 @@ export default function ManageTeamsPage() {
     if (!teamName || !teamDepartment || !event) return;
     setIsSubmitting(true);
 
+    const isDuplicate = event.teams?.some(
+      (team) => team.teamName.toLowerCase() === teamName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate Team Name',
+        description: 'A team with this name already exists in this event.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     const departmentName = departments?.find(d => d.id === teamDepartment)?.name || teamDepartment;
 
     const newTeam: Omit<Team, 'id'> = {
