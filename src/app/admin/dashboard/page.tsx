@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -15,6 +14,7 @@ import { collection } from 'firebase/firestore';
 import type { Event, Venue, User, Sport } from '@/lib/types';
 import { VictoriesByDepartmentChart } from '@/components/admin/VictoriesByDepartmentChart';
 import { useMemo } from 'react';
+import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -51,12 +51,13 @@ export default function DashboardPage() {
     const victoriesByDept: { [key: string]: number } = {};
 
     events.forEach(event => {
-      const completedMatches = event.matches.filter(
+      // Ensure matches and teams are arrays before filtering/finding
+      const completedMatches = (event.matches || []).filter(
         match => match.status === 'completed' && match.winnerTeamId
       );
 
       completedMatches.forEach(match => {
-        const winningTeam = event.teams.find(
+        const winningTeam = (event.teams || []).find(
           team => team.teamId === match.winnerTeamId
         );
         if (winningTeam && winningTeam.department) {
@@ -107,21 +108,16 @@ export default function DashboardPage() {
           description="Different sports categories available"
         />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="col-span-1 lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Department Victories</CardTitle>
-            <CardDescription>
-              A chart showing which department has the most victories across all events.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pl-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
             <VictoriesByDepartmentChart
               data={victoriesData}
               isLoading={isLoadingEvents}
             />
-          </CardContent>
-        </Card>
+        </div>
+         <div className="lg:col-span-1">
+            <UpcomingMatchesWidget />
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
@@ -40,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
 
 const announcementIcons = {
   info: <Info className="h-5 w-5 text-blue-500" />,
@@ -207,29 +207,7 @@ export default function StudentDashboardPage() {
               <p className="text-sm text-muted-foreground">{userData.email}</p>
             </CardContent>
           </Card>
-           <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-                <CardTitle className="text-lg font-semibold">My Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Department</p>
-                    <p className="font-medium text-foreground">{userData.dept}</p>
-                </div>
-                 {userData.registrationNumber && (
-                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registration #</p>
-                        <p className="font-medium text-foreground">{userData.registrationNumber}</p>
-                    </div>
-                )}
-                 {userData.gender && (
-                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gender</p>
-                        <p className="font-medium capitalize text-foreground">{userData.gender}</p>
-                    </div>
-                )}
-            </CardContent>
-          </Card>
+           <UpcomingMatchesWidget />
         </div>
       </aside>
 
@@ -288,7 +266,7 @@ export default function StudentDashboardPage() {
             </div>
           ) : (
             <div className="text-center py-10 px-6 bg-muted/50 rounded-lg">
-                <p className="text-muted-foreground">You haven&apos;t requested to join any events yet.</p>
+                <p className="text-muted-foreground">You haven't requested to join any events yet.</p>
                 <p className="text-sm text-muted-foreground/80 mt-1">Check out the available events below!</p>
             </div>
           )}
