@@ -110,12 +110,29 @@ export default function DepartmentsPage() {
       });
       return;
     }
+    
+    // Check for duplicate department name (case-insensitive)
+    const isDuplicate = departments?.some(
+      (dept) =>
+        dept.name.toLowerCase() === departmentName.toLowerCase() &&
+        dept.id !== selectedDept?.id
+    );
+
+    if (isDuplicate) {
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate Department',
+        description: 'A department with this name already exists.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       if (selectedDept) {
         // Update existing department
-        const deptDocRef = doc(firestore, 'departments', selectedDept.id);
+        const deptDocRef = doc(firestore, 'departments', selectedDept.id!);
         await updateDoc(deptDocRef, { name: departmentName });
         toast({
           title: 'Department Updated',
@@ -125,8 +142,9 @@ export default function DepartmentsPage() {
         // Add new department
         const newDocRef = doc(collection(firestore, 'departments'));
         await setDoc(newDocRef, {
-          departmentId: newDocRef.id, // Store the doc id within the document
-          name: departmentName
+          id: newDocRef.id,
+          departmentId: newDocRef.id,
+          name: departmentName,
         });
         toast({
           title: 'Department Created',
