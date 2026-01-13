@@ -15,7 +15,8 @@ import {
   Info,
   AlertTriangle,
   Award,
-  CalendarClock
+  CalendarClock,
+  Users
 } from 'lucide-react';
 import {
   useCollection,
@@ -38,7 +39,7 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
 import { RecentResultsWidget } from '@/components/common/RecentResultsWidget';
@@ -139,6 +140,18 @@ export default function StudentDashboardPage() {
   };
 
   const isLoading = isUserLoading || isUserDataLoading || isLoadingEvents || isLoadingMyRequests || isLoadingAnnouncements;
+
+  const eventDepartments = useMemo(() => {
+    const depts: Record<string, string[]> = {};
+    if (events) {
+        events.forEach(event => {
+            const teamDepts = event.teams?.map(team => team.department) || [];
+            depts[event.id!] = [...new Set(teamDepts)];
+        });
+    }
+    return depts;
+  }, [events]);
+
 
   if (isLoading) {
     return (
@@ -283,7 +296,8 @@ export default function StudentDashboardPage() {
           {availableEvents.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
               {availableEvents.map((event) => {
-                const isDeptMatch = event.department === 'All Departments' || event.department === userData.dept;
+                const participatingDepts = eventDepartments[event.id!] || [];
+                const isStudentDeptInEvent = participatingDepts.includes(userData.dept);
                 
                 return (
                   <Card key={event.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
@@ -296,22 +310,22 @@ export default function StudentDashboardPage() {
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>Starts: {new Date(event.startDate).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex items-center text-muted-foreground text-sm">
-                        <MapPin className="mr-2 h-4 w-4" />
-                        <span>{event.department}</span>
+                       <div className="flex items-center text-muted-foreground text-sm">
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>Organized by: {event.department}</span>
                       </div>
                       <p className="text-sm text-muted-foreground/80 pt-2 line-clamp-2">{event.description}</p>
                     </CardContent>
                     <CardFooter className="flex-col items-stretch p-4">
                       <Button
                         className="w-full"
-                        disabled={!isDeptMatch}
+                        disabled={!isStudentDeptInEvent}
                         onClick={() => handleRequestToJoin(event)}
                       >
                         Request to Join
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
-                      {!isDeptMatch && (
+                      {!isStudentDeptInEvent && (
                         <p className="text-xs text-center text-red-500/80 pt-2">
                             This event is not available for your department.
                         </p>
@@ -332,3 +346,5 @@ export default function StudentDashboardPage() {
     </div>
   );
 }
+
+    

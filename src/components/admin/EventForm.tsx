@@ -40,7 +40,7 @@ import { useMemo } from 'react';
 const createFormSchema = (schedulingWindowMonths: number) => z.object({
   name: z.string().min(2, 'Event name must be at least 2 characters.'),
   sportType: z.string({ required_error: 'Please select a sport.' }),
-  department: z.string({ required_error: 'Please select a department.' }),
+  department: z.string({ required_error: 'Please select an organizing department.' }),
   startDate: z.date({ required_error: 'A date is required.' }).refine(date => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of today
@@ -160,7 +160,6 @@ export function EventForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     <SelectItem value="All Departments">All Departments</SelectItem>
                     {departments.map(dept => (
                       <SelectItem key={dept.id} value={dept.id!}>
                         {dept.name}
@@ -299,3 +298,5 @@ export function EventForm({
     </Form>
   );
 }
+
+    
