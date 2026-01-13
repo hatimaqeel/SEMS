@@ -16,19 +16,12 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Check, ChevronsUpDown, CalendarIcon } from 'lucide-react';
+import { ChevronsUpDown, CalendarIcon } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Event, Sport, Venue, Department, AppSettings } from '@/lib/types';
@@ -36,13 +29,13 @@ import { Textarea } from '../ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useMemo } from 'react';
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -161,16 +154,15 @@ export function EventForm({
               </FormItem>
             )}
           />
-          <FormField
+           <FormField
             control={form.control}
             name="department"
             render={({ field }) => (
-              <FormItem className="flex flex-col">
+              <FormItem>
                 <FormLabel>Organizing Department(s)</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                     <Button
                         variant="outline"
                         role="combobox"
                         className={cn(
@@ -186,51 +178,36 @@ export function EventForm({
                                   key={deptId}
                                   className="mr-1 mb-1"
                                 >
-                                  {departmentOptions.find(d => d.id === deptId)?.name}
+                                  {departmentOptions.find(d => d.id === deptId)?.name || 'Unknown'}
                                 </Badge>
                               ))
                             : "Select Department(s)"}
                         </div>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput placeholder="Search departments..." />
-                      <CommandList>
-                        <CommandEmpty>No department found.</CommandEmpty>
-                        <CommandGroup>
-                          {departmentOptions.map(option => (
-                            <CommandItem
-                              key={option.id}
-                              onSelect={() => {
-                                const selectedValues = field.value || [];
-                                const isSelected = selectedValues.includes(option.id!);
-                                
-                                const newValues = isSelected
-                                  ? selectedValues.filter(id => id !== option.id)
-                                  : [...selectedValues, option.id!];
-
-                                form.setValue('department', newValues);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  field.value?.includes(option.id!)
-                                    ? "opacity-100"
-                                    : "opacity-0"
-                                )}
-                              />
-                              {option.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]">
+                    <DropdownMenuLabel>Departments</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                     <ScrollArea className="h-48">
+                      {departmentOptions.map((option) => (
+                        <DropdownMenuCheckboxItem
+                          key={option.id}
+                          checked={field.value?.includes(option.id!)}
+                          onCheckedChange={(checked) => {
+                             const selectedValues = field.value || [];
+                             const newValues = checked
+                                ? [...selectedValues, option.id!]
+                                : selectedValues.filter((id) => id !== option.id);
+                              form.setValue('department', newValues);
+                          }}
+                        >
+                          {option.name}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </ScrollArea>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <FormMessage />
               </FormItem>
             )}
