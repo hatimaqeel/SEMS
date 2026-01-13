@@ -28,19 +28,28 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
+import { Check, ChevronsUpDown, CalendarIcon } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Event, Sport, Venue, Department, AppSettings } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useMemo } from 'react';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command';
+import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
 
 // This function now returns a schema that depends on the scheduling window
 const createFormSchema = (schedulingWindowMonths: number) => z.object({
   name: z.string().min(2, 'Event name must be at least 2 characters.'),
   sportType: z.string({ required_error: 'Please select a sport.' }),
-  department: z.string({ required_error: 'Please select an organizing department.' }),
+  department: z.array(z.string()).nonempty({ message: 'Please select at least one department.' }),
   startDate: z.date({ required_error: 'A date is required.' }).refine(date => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of today
@@ -81,6 +90,9 @@ export function EventForm({
 }: EventFormProps) {
   const schedulingWindowMonths = settings?.eventSchedulingWindowMonths || 12;
   const formSchema = useMemo(() => createFormSchema(schedulingWindowMonths), [schedulingWindowMonths]);
+  
+  const allDepartmentsOption = { id: 'all', name: 'All Departments' };
+  const departmentOptions = [allDepartmentsOption, ...departments];
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(formSchema),
@@ -89,12 +101,14 @@ export function EventForm({
           ...initialData,
           startDate: new Date(initialData.startDate),
           format: initialData.settings.format,
-          department: departments.find(d => d.name === initialData.department)?.id || initialData.department,
+          department: initialData.department.map(deptName => {
+            return departments.find(d => d.name === deptName)?.id || deptName;
+          }),
         }
       : {
           name: '',
           sportType: '',
-          department: '',
+          department: [],
           startDate: undefined,
           startTime: '',
           description: '',
@@ -151,22 +165,79 @@ export function EventForm({
             control={form.control}
             name="department"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Organizing Department</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a department" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept.id} value={dept.id!}>
-                        {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <FormItem className="flex flex-col">
+                <FormLabel>Organizing Department(s)</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value?.length && "text-muted-foreground"
+                        )}
+                      >
+                         <div className="flex gap-1 flex-wrap">
+                          {field.value && field.value.length > 0
+                            ? field.value.map(deptId => (
+                                <Badge
+                                  variant="secondary"
+                                  key={deptId}
+                                  className="mr-1"
+                                >
+                                  {departmentOptions.find(d => d.id === deptId)?.name}
+                                </Badge>
+                              ))
+                            : "Select Department(s)"}
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search departments..." />
+                      <CommandEmpty>No department found.</CommandEmpty>
+                       <ScrollArea className="max-h-60">
+                          <CommandGroup>
+                            {departmentOptions.map(option => (
+                              <CommandItem
+                                value={option.name}
+                                key={option.id}
+                                onSelect={() => {
+                                  const selectedValues = field.value || [];
+                                  const isSelected = selectedValues.includes(option.id!);
+
+                                  if (option.id === 'all') {
+                                     const allIds = departments.map(d => d.id!);
+                                     form.setValue('department', isSelected ? [] : allIds);
+                                     return;
+                                  }
+                                  
+                                  const newValues = isSelected
+                                    ? selectedValues.filter(id => id !== option.id)
+                                    : [...selectedValues, option.id!];
+
+                                  form.setValue('department', newValues);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    field.value?.includes(option.id!)
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {option.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                       </ScrollArea>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}

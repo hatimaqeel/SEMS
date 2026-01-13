@@ -175,7 +175,11 @@ export default function StudentDashboardPage() {
   const upcomingEvents = events?.filter((e) => e.status === 'upcoming') || [];
   
   const myRequestEvents = upcomingEvents.filter(event => myRequestsByEvent[event.id!]);
-  const availableEvents = upcomingEvents.filter(event => !myRequestsByEvent[event.id!]);
+  const availableEvents = upcomingEvents.filter(event => {
+    if (myRequestsByEvent[event.id!]) return false; // Already requested
+    const participatingDepts = eventDepartments[event.id!] || [];
+    return participatingDepts.length === 0 || participatingDepts.includes(userData.dept);
+  });
 
   const getStatusUi = (status: 'pending' | 'approved' | 'rejected') => {
     switch (status) {
@@ -297,7 +301,7 @@ export default function StudentDashboardPage() {
             <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
               {availableEvents.map((event) => {
                 const participatingDepts = eventDepartments[event.id!] || [];
-                const isStudentDeptInEvent = participatingDepts.includes(userData.dept);
+                const isStudentDeptInEvent = participatingDepts.length === 0 || participatingDepts.includes(userData.dept);
                 
                 return (
                   <Card key={event.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
@@ -312,7 +316,7 @@ export default function StudentDashboardPage() {
                       </div>
                        <div className="flex items-center text-muted-foreground text-sm">
                         <Users className="mr-2 h-4 w-4" />
-                        <span>Organized by: {event.department}</span>
+                        <span>Organized by: {event.department.join(', ')}</span>
                       </div>
                       <p className="text-sm text-muted-foreground/80 pt-2 line-clamp-2">{event.description}</p>
                     </CardContent>

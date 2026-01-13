@@ -1,6 +1,7 @@
 
 
 
+
 export type AppSettings = {
     secretKey: string;
     eventSchedulingWindowMonths?: number;
@@ -39,7 +40,7 @@ export type Event = {
   eventId: string;
   name:string;
   sportType: string;
-  department: string;
+  department: string[];
   startDate: string;
   startTime: string;
   description: string;

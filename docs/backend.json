@@ -116,8 +116,11 @@
           "description": "The type of sport for the event."
         },
         "department": {
-          "type": "string",
-          "description": "The department hosting the event."
+          "type": "array",
+          "description": "The department(s) hosting the event.",
+          "items": {
+            "type": "string"
+          }
         },
         "startDate": {
           "type": "string",

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -104,12 +105,15 @@ export default function EventsPage() {
   const handleFormSubmit = async (values: EventFormValues) => {
     setIsSubmitting(true);
 
-    const departmentName = departments?.find(d => d.id === values.department)?.name || values.department;
+    const departmentNames = values.department.map(deptId => {
+      if (deptId === 'all') return 'All Departments';
+      return departments?.find(d => d.id === deptId)?.name || deptId;
+    });
 
     const eventData = {
       name: values.name,
       sportType: values.sportType,
-      department: departmentName,
+      department: departmentNames,
       startDate: values.startDate.toISOString().split('T')[0],
       startTime: values.startTime,
       description: values.description,
