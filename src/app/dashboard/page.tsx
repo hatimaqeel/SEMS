@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
@@ -207,6 +208,7 @@ export default function StudentDashboardPage() {
               </Avatar>
               <h1 className="text-2xl font-bold font-headline text-foreground">{userData.displayName}</h1>
               <p className="text-sm text-muted-foreground">{userData.email}</p>
+              <p className="text-sm text-muted-foreground font-semibold mt-1">{userData.dept}</p>
             </CardContent>
           </Card>
            <CalendarWidget />
