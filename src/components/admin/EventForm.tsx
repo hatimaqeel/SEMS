@@ -41,6 +41,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from '@/components/ui/command';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
@@ -91,8 +92,7 @@ export function EventForm({
   const schedulingWindowMonths = settings?.eventSchedulingWindowMonths || 12;
   const formSchema = useMemo(() => createFormSchema(schedulingWindowMonths), [schedulingWindowMonths]);
   
-  const allDepartmentsOption = { id: 'all', name: 'All Departments' };
-  const departmentOptions = [allDepartmentsOption, ...departments];
+  const departmentOptions = [...departments];
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(formSchema),
@@ -101,7 +101,7 @@ export function EventForm({
           ...initialData,
           startDate: new Date(initialData.startDate),
           format: initialData.settings.format,
-          department: initialData.department.map(deptName => {
+          department: (Array.isArray(initialData.department) ? initialData.department : [initialData.department]).map(deptName => {
             return departments.find(d => d.name === deptName)?.id || deptName;
           }),
         }
@@ -174,7 +174,7 @@ export function EventForm({
                         variant="outline"
                         role="combobox"
                         className={cn(
-                          "w-full justify-between",
+                          "w-full justify-between h-auto",
                           !field.value?.length && "text-muted-foreground"
                         )}
                       >
@@ -184,7 +184,7 @@ export function EventForm({
                                 <Badge
                                   variant="secondary"
                                   key={deptId}
-                                  className="mr-1"
+                                  className="mr-1 mb-1"
                                 >
                                   {departmentOptions.find(d => d.id === deptId)?.name}
                                 </Badge>
@@ -198,43 +198,37 @@ export function EventForm({
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <Command>
                       <CommandInput placeholder="Search departments..." />
-                      <CommandEmpty>No department found.</CommandEmpty>
-                       <ScrollArea className="max-h-60">
-                          <CommandGroup>
-                            {departmentOptions.map(option => (
-                              <CommandItem
-                                value={option.name}
-                                key={option.id}
-                                onSelect={() => {
-                                  const selectedValues = field.value || [];
-                                  const isSelected = selectedValues.includes(option.id!);
+                      <CommandList>
+                        <CommandEmpty>No department found.</CommandEmpty>
+                        <CommandGroup>
+                          {departmentOptions.map(option => (
+                            <CommandItem
+                              value={option.name}
+                              key={option.id}
+                              onSelect={() => {
+                                const selectedValues = field.value || [];
+                                const isSelected = selectedValues.includes(option.id!);
+                                
+                                const newValues = isSelected
+                                  ? selectedValues.filter(id => id !== option.id)
+                                  : [...selectedValues, option.id!];
 
-                                  if (option.id === 'all') {
-                                     const allIds = departments.map(d => d.id!);
-                                     form.setValue('department', isSelected ? [] : allIds);
-                                     return;
-                                  }
-                                  
-                                  const newValues = isSelected
-                                    ? selectedValues.filter(id => id !== option.id)
-                                    : [...selectedValues, option.id!];
-
-                                  form.setValue('department', newValues);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    field.value?.includes(option.id!)
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                {option.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                       </ScrollArea>
+                                form.setValue('department', newValues);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  field.value?.includes(option.id!)
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {option.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
@@ -369,5 +363,3 @@ export function EventForm({
     </Form>
   );
 }
-
-    
