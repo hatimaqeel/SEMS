@@ -316,7 +316,7 @@ export default function StudentDashboardPage() {
                       </div>
                        <div className="flex items-center text-muted-foreground text-sm">
                         <Users className="mr-2 h-4 w-4" />
-                        <span>Organized by: {event.department.join(', ')}</span>
+                        <span>Organized by: {Array.isArray(event.department) ? event.department.join(', ') : event.department}</span>
                       </div>
                       <p className="text-sm text-muted-foreground/80 pt-2 line-clamp-2">{event.description}</p>
                     </CardContent>
@@ -350,5 +350,7 @@ export default function StudentDashboardPage() {
     </div>
   );
 }
+
+    
 
     
