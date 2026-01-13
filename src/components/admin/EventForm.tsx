@@ -203,7 +203,6 @@ export function EventForm({
                         <CommandGroup>
                           {departmentOptions.map(option => (
                             <CommandItem
-                              value={option.name}
                               key={option.id}
                               onSelect={() => {
                                 const selectedValues = field.value || [];
