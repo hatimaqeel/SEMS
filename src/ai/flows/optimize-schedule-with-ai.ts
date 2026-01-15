@@ -26,6 +26,7 @@ const OptimizeScheduleWithAIInputSchema = z.object({
   timeConstraints: z.object({
     earliestStartTime: z.string().describe('The earliest start time for any match (ISO format).'),
     latestEndTime: z.string().describe('The latest end time for any match (ISO format).'),
+    restMinutes: z.number().optional().describe('Minimum rest time in minutes between matches in the same venue.'),
   }).describe('Overall time constraints for the event.'),
   matches: z.array(z.object({
     matchId: z.string().describe('The ID of the match.'),
@@ -72,10 +73,11 @@ const prompt = ai.definePrompt({
 **GLOBAL CONSTRAINTS:**
 1.  **Venue Suitability**: You MUST only schedule a match in a venue that supports the sport type of the match. For example, a 'Cricket' match can only be in a venue that lists 'Cricket' in its supportedSports.
 2.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
-3.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time.
-4.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
-5.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
-6.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
+3.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time. A new match cannot start until the previous match has ended.
+4.  **Rest Time**: There must be a minimum of {{timeConstraints.restMinutes}} minutes between matches in the same venue. The start time of a new match must be at least {{timeConstraints.restMinutes}} minutes after the end time of the previous match.
+5.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
+6.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
+7.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
 
 **FORMAT-SPECIFIC CONSTRAINTS:**
 
