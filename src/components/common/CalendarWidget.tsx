@@ -30,7 +30,7 @@ export function CalendarWidget() {
 
     events.forEach(event => {
       event.matches.forEach(match => {
-        if (match.startTime) {
+        if (match.startTime && match.startTime.length > 0) {
           const matchDate = parseISO(match.startTime).toISOString().split('T')[0];
           matchDates.add(matchDate);
           if (match.round && (event.matches.filter(m => m.round === match.round).length === 1 || match.round > 3)) { // simple logic for finals
