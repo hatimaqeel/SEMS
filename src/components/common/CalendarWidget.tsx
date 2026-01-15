@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -31,10 +30,14 @@ export function CalendarWidget() {
     events.forEach(event => {
       event.matches.forEach(match => {
         if (match.startTime && match.startTime.length > 0) {
-          const matchDate = parseISO(match.startTime).toISOString().split('T')[0];
-          matchDates.add(matchDate);
-          if (match.round && (event.matches.filter(m => m.round === match.round).length === 1 || match.round > 3)) { // simple logic for finals
-             finalDates.add(matchDate);
+          try {
+            const matchDate = parseISO(match.startTime).toISOString().split('T')[0];
+            matchDates.add(matchDate);
+            if (match.round && (event.matches.filter(m => m.round === match.round).length === 1 || match.round > 3)) { // simple logic for finals
+               finalDates.add(matchDate);
+            }
+          } catch (e) {
+            // Ignore invalid date strings, preventing a crash
           }
         }
       });
@@ -50,7 +53,14 @@ export function CalendarWidget() {
     if (!selectedDate || !events) return [];
     return events.flatMap(event => 
         event.matches
-            .filter(match => match.startTime && isSameDay(parseISO(match.startTime), selectedDate))
+            .filter(match => {
+                if (!match.startTime) return false;
+                try {
+                    return isSameDay(parseISO(match.startTime), selectedDate);
+                } catch {
+                    return false;
+                }
+            })
             .map(match => ({
                 ...match,
                 eventName: event.name,

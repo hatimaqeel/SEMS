@@ -53,21 +53,27 @@ export function RecentResultsWidget() {
       };
 
       event.matches.forEach((match) => {
-        const startTime = parseISO(match.startTime);
-        const endTime = parseISO(match.endTime);
-        const isLive =
-          match.status === 'scheduled' &&
-          startTime <= currentTime &&
-          currentTime <= endTime;
+        if (!match.startTime || !match.endTime) return;
+        
+        try {
+          const startTime = parseISO(match.startTime);
+          const endTime = parseISO(match.endTime);
+          const isLive =
+            match.status === 'scheduled' &&
+            startTime <= currentTime &&
+            currentTime <= endTime;
 
-        if (match.status === 'completed' || isLive) {
-          allMatches.push({
-            ...match,
-            status: isLive ? 'live' : match.status,
-            eventName: event.name,
-            teamA: getTeamById(match.teamAId),
-            teamB: getTeamById(match.teamBId),
-          });
+          if (match.status === 'completed' || isLive) {
+            allMatches.push({
+              ...match,
+              status: isLive ? 'live' : match.status,
+              eventName: event.name,
+              teamA: getTeamById(match.teamAId),
+              teamB: getTeamById(match.teamBId),
+            });
+          }
+        } catch (e) {
+            // Ignore matches with invalid date strings
         }
       });
     });
@@ -77,9 +83,13 @@ export function RecentResultsWidget() {
         // Sort live matches to the top, then by time
         if (a.status === 'live' && b.status !== 'live') return -1;
         if (a.status !== 'live' && b.status === 'live') return 1;
-        return (
-          parseISO(b.startTime).getTime() - parseISO(a.startTime).getTime()
-        );
+        try {
+            return (
+              parseISO(b.startTime).getTime() - parseISO(a.startTime).getTime()
+            );
+        } catch {
+            return 0;
+        }
       })
       .slice(0, 5);
   }, [events, currentTime]);
@@ -104,7 +114,12 @@ export function RecentResultsWidget() {
             {processedMatches.map((match) => {
                 const isTeamAWinner = match.winnerTeamId === match.teamA?.teamId;
                 const isTeamBWinner = match.winnerTeamId === match.teamB?.teamId;
-                const elapsedMinutes = differenceInMinutes(currentTime, parseISO(match.startTime));
+                
+                let elapsedMinutes = 0;
+                try {
+                    elapsedMinutes = differenceInMinutes(currentTime, parseISO(match.startTime));
+                } catch {}
+
 
                 return (
                     <div key={match.matchId} className="p-3 rounded-lg border bg-card/80">

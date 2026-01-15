@@ -67,27 +67,37 @@ export function UpcomingMatchesWidget() {
       };
 
       event.matches.forEach((match) => {
-        const matchTime = parseISO(match.startTime);
-        if (
-          match.status === 'scheduled' &&
-          (isToday(matchTime) || isFuture(matchTime))
-        ) {
-          allMatches.push({
-            ...match,
-            eventName: event.name,
-            sportType: event.sportType,
-            teamA: getTeamById(match.teamAId),
-            teamB: getTeamById(match.teamBId),
-            venue: venues.find((v) => v.id === match.venueId) || null,
-          });
+        if (!match.startTime) return;
+        try {
+            const matchTime = parseISO(match.startTime);
+            if (
+              match.status === 'scheduled' &&
+              (isToday(matchTime) || isFuture(matchTime))
+            ) {
+              allMatches.push({
+                ...match,
+                eventName: event.name,
+                sportType: event.sportType,
+                teamA: getTeamById(match.teamAId),
+                teamB: getTeamById(match.teamBId),
+                venue: venues.find((v) => v.id === match.venueId) || null,
+              });
+            }
+        } catch (e) {
+            // Ignore invalid date strings
         }
       });
     });
 
     return allMatches
       .sort(
-        (a, b) =>
-          parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime()
+        (a, b) => {
+            try {
+                return parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime()
+            } catch {
+                return 0;
+            }
+        }
       )
       .slice(0, 5); // Limit to the next 5 matches
   }, [events, venues]);
