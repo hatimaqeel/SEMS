@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
 
 // Generates a full round-robin schedule structure using the circle method.
 function generateRoundRobinAllRounds(teams: Team[]): { round: number, pairs: { teamAId: string, teamBId: string }[] }[] {
@@ -80,7 +81,7 @@ export default function SchedulePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editVenue, setEditVenue] = useState('');
   const [editTime, setEditTime] = useState('');
@@ -127,7 +128,7 @@ export default function SchedulePage() {
     }
     setSelectedMatch(match);
     setEditVenue(match.venueId);
-    setEditTime(match.startTime ? new Date(match.startTime).toTimeString().substring(0, 5) : '');
+    setEditTime(match.startTime ? format(new Date(match.startTime), 'HH:mm') : '');
     setIsEditModalOpen(true);
   };
   
@@ -411,6 +412,7 @@ export default function SchedulePage() {
           timeConstraints: {
             earliestStartTime: earliestStartTime.toISOString(),
             latestEndTime: new Date(latestEndDate.setHours(18,0,0,0)).toISOString(),
+            restMinutes: 30, // Add rest time between matches
           },
           matches: aiInputMatches,
           sports: sportsData,
@@ -647,3 +649,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
