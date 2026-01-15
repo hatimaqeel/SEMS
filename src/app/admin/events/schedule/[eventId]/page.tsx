@@ -81,7 +81,7 @@ export default function SchedulePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isSubmittingEdit, setIsSubmittingEdit = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editVenue, setEditVenue] = useState('');
   const [editTime, setEditTime] = useState('');
