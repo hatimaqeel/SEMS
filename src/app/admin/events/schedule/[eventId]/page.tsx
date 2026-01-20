@@ -98,6 +98,9 @@ export default function SchedulePage() {
   const sportsRef = useMemoFirebase(() => collection(firestore, 'sports'), [firestore]);
   const { data: sports, isLoading: isLoadingSports } = useCollection<Sport>(sportsRef);
 
+  const allEventsRef = useMemoFirebase(() => collection(firestore, 'events'), [firestore]);
+  const { data: allEvents, isLoading: isLoadingAllEvents } = useCollection<Event>(allEventsRef);
+
   const getTeamName = (teamId: string) => {
     if (!teamId || teamId === 'TBD') return 'TBD';
     
@@ -214,11 +217,11 @@ export default function SchedulePage() {
 
 
   const handleGenerateSchedule = async (roundToSchedule = 1) => {
-    if (!event || !venues || !sports) {
+    if (!event || !venues || !sports || !allEvents) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Event data, venues, or sports data is not loaded yet.',
+        description: 'Core event data is not loaded yet. Please wait a moment and try again.',
       });
       return;
     }
@@ -244,6 +247,37 @@ export default function SchedulePage() {
       return;
     }
     
+    const teamRosters: Record<string, string[]> = {};
+    if (event.teams) {
+      for (const team of event.teams) {
+        teamRosters[team.teamId] = team.players?.map(p => p.userId) || [];
+      }
+    }
+
+    const playerCommitments: Record<string, { startTime: string; endTime: string }[]> = {};
+    if (allEvents) {
+      for (const e of allEvents) {
+        if (!e.matches || !e.teams) continue;
+        for (const match of e.matches) {
+          if (match.status === 'scheduled' && match.startTime && match.endTime) {
+            const teamA = e.teams.find(t => t.teamId === match.teamAId);
+            const teamB = e.teams.find(t => t.teamId === match.teamBId);
+            const playersInMatch = [...(teamA?.players || []), ...(teamB?.players || [])];
+
+            for (const player of playersInMatch) {
+              if (!playerCommitments[player.userId]) {
+                playerCommitments[player.userId] = [];
+              }
+              playerCommitments[player.userId].push({
+                startTime: match.startTime,
+                endTime: match.endTime,
+              });
+            }
+          }
+        }
+      }
+    }
+
     let aiInputMatches: OptimizeScheduleWithAIInput['matches'] = [];
     let finalMatches: Match[] = roundToSchedule > 1 ? [...event.matches] : [];
     let matchCounter = 0;
@@ -417,6 +451,8 @@ export default function SchedulePage() {
           matches: aiInputMatches,
           sports: sportsData,
           teams: approvedTeams.map(t => t.teamId),
+          teamRosters,
+          playerCommitments,
       });
 
       const { optimizedMatches } = result;
@@ -457,7 +493,7 @@ export default function SchedulePage() {
     }
   };
 
-  const isLoading = isLoadingEvent || isLoadingVenues || isLoadingSports;
+  const isLoading = isLoadingEvent || isLoadingVenues || isLoadingSports || isLoadingAllEvents;
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8"><Loader className="animate-spin" /> Loading Schedule...</div>;

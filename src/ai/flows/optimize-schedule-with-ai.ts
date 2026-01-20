@@ -42,6 +42,11 @@ const OptimizeScheduleWithAIInputSchema = z.object({
     defaultDurationMinutes: z.number().describe('The default duration of a match for this sport.'),
   })).describe('A map of sport types to their default durations.'),
   teams: z.array(z.string()).optional().describe('A list of all team IDs participating in the event. Used for round-robin validation.'),
+  teamRosters: z.record(z.string(), z.array(z.string())).describe('A map of team IDs to an array of player IDs on that team.'),
+  playerCommitments: z.record(z.string(), z.array(z.object({
+    startTime: z.string().describe("The start time of the player's existing commitment."),
+    endTime: z.string().describe("The end time of the player's existing commitment."),
+  }))).describe("A map of player IDs to their existing scheduled matches across all events."),
 });
 export type OptimizeScheduleWithAIInput = z.infer<typeof OptimizeScheduleWithAIInputSchema>;
 
@@ -71,13 +76,14 @@ const prompt = ai.definePrompt({
 **EVENT FORMAT: {{{eventFormat}}}**
 
 **GLOBAL CONSTRAINTS:**
-1.  **Venue Suitability**: You MUST only schedule a match in a venue that supports the sport type of the match. For example, a 'Cricket' match can only be in a venue that lists 'Cricket' in its supportedSports.
-2.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
-3.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time. A new match cannot start until the previous match has ended.
-4.  **Rest Time**: There must be a minimum of {{timeConstraints.restMinutes}} minutes between matches in the same venue. The start time of a new match must be at least {{timeConstraints.restMinutes}} minutes after the end time of the previous match.
-5.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
-6.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
-7.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
+1.  **Player Availability**: This is the most important rule. A player cannot be scheduled for two matches at the same time, even across different events. You MUST use the 'teamRosters' to find the players for each match and then check the 'playerCommitments' for every player on both teams. The proposed 'startTime' and 'endTime' for a new match cannot overlap with any of the player's existing commitments.
+2.  **Venue Suitability**: You MUST only schedule a match in a venue that supports the sport type of the match. For example, a 'Cricket' match can only be in a venue that lists 'Cricket' in its supportedSports.
+3.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
+4.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time. A new match cannot start until the previous match has ended.
+5.  **Rest Time**: There must be a minimum of {{timeConstraints.restMinutes}} minutes between matches in the same venue. The start time of a new match must be at least {{timeConstraints.restMinutes}} minutes after the end time of the previous match.
+6.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
+7.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
+8.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
 
 **FORMAT-SPECIFIC CONSTRAINTS:**
 
@@ -89,7 +95,7 @@ const prompt = ai.definePrompt({
     *   **One Match Per Team Per Day:** A team **CANNOT** play more than one match on the same calendar day. You are provided with a list of all teams in the 'teams' input field to help enforce this.
 
 **Failure Condition:**
-If you cannot generate a valid schedule that respects all of these rules (e.g., not enough time slots, venue conflicts, team daily match limit), you MUST return an empty 'optimizedMatches' array and provide a clear 'reasoning' explaining exactly which constraint could not be met.
+If you cannot generate a valid schedule that respects all of these rules (e.g., not enough time slots, venue conflicts, team daily match limit, player availability conflicts), you MUST return an empty 'optimizedMatches' array and provide a clear 'reasoning' explaining exactly which constraint could not be met.
 
 **INPUT DATA:**
 Event ID: {{{eventId}}}
@@ -113,6 +119,18 @@ Sports Data:
 {{#if teams}}
 All Team IDs: {{{teams}}}
 {{/if}}
+
+Team Rosters (for this event):
+{{#each teamRosters}}
+  - Team ID: {{@key}}
+    - Player IDs: {{this}}
+{{/each}}
+
+Player Commitments (across ALL events):
+{{#each playerCommitments}}
+  - Player ID: {{@key}}
+    - Busy Slots: {{#each this}} Start: {{{startTime}}}, End: {{{endTime}}} {{/each}}
+{{/each}}
 
 ---
 **YOUR TASK:**
