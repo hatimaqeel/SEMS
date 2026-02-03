@@ -71,22 +71,33 @@ const prompt = ai.definePrompt({
   name: 'optimizeScheduleWithAIPrompt',
   input: {schema: OptimizeScheduleWithAIInputSchema},
   output: {schema: OptimizeScheduleWithAIOutputSchema},
-  prompt: `You are an AI scheduling assistant for university sports events. Your task is to create a valid, conflict-free match schedule for ONE ROUND of a tournament based on the provided data. You must respect all constraints.
+  prompt: `You are an AI scheduling assistant for university sports events. Your primary and most critical task is to generate a conflict-free match schedule.
+
+**THE ABSOLUTE #1 RULE: NO PLAYER CONFLICTS**
+- A player **CANNOT** be scheduled for two matches at the same time. This applies across all events.
+- Before you assign a 'startTime' and 'endTime' to any match, you **MUST** perform the following check:
+    1. Identify the two teams in the match (e.g., Team A and Team B).
+    2. Using the \`teamRosters\` data, find all \`player IDs\` for both Team A and Team B.
+    3. For **EVERY SINGLE PLAYER ID** you found, look up their schedule in the \`playerCommitments\` data.
+    4. The \`startTime\` and \`endTime\` you propose for the new match **MUST NOT** overlap with any of the \`startTime\`/\`endTime\` slots listed in that player's commitments.
+- **If you cannot schedule a match without creating a player conflict, you must consider it an impossible schedule.**
+- This is the most important constraint. All other constraints are secondary to ensuring no player is double-booked.
+
+---
+
+**SECONDARY GLOBAL CONSTRAINTS:**
+1.  **Venue Suitability**: You MUST only schedule a match in a venue that supports the sport type of the match. For example, a 'Cricket' match can only be in a venue that lists 'Cricket' in its supportedSports.
+2.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
+3.  **No Overlapping Matches in Same Venue:** Two matches cannot occur in the same venue at the same time. A new match cannot start until the previous match has ended.
+4.  **Rest Time**: There must be a minimum of {{timeConstraints.restMinutes}} minutes between matches in the same venue. The start time of a new match must be at least {{timeConstraints.restMinutes}} minutes after the end time of the previous match.
+5.  **Time Window:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
+6.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
+7.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
+
+---
 
 **EVENT FORMAT: {{{eventFormat}}}**
-
-**GLOBAL CONSTRAINTS:**
-1.  **Player Availability**: This is the most important rule. A player cannot be scheduled for two matches at the same time, even across different events. You MUST use the 'teamRosters' to find the players for each match and then check the 'playerCommitments' for every player on both teams. The proposed 'startTime' and 'endTime' for a new match cannot overlap with any of the player's existing commitments.
-2.  **Venue Suitability**: You MUST only schedule a match in a venue that supports the sport type of the match. For example, a 'Cricket' match can only be in a venue that lists 'Cricket' in its supportedSports.
-3.  **Venue Availability:** Do not schedule matches outside of the provided venue availability slots.
-4.  **No Overlapping Matches:** Two matches cannot be scheduled in the same venue at the same time. A new match cannot start until the previous match has ended.
-5.  **Rest Time**: There must be a minimum of {{timeConstraints.restMinutes}} minutes between matches in the same venue. The start time of a new match must be at least {{timeConstraints.restMinutes}} minutes after the end time of the previous match.
-6.  **Time Constraints:** All matches must be scheduled within the overall earliest start time ({{timeConstraints.earliestStartTime}}) and latest end time ({{timeConstraints.latestEndTime}}).
-7.  **Match Duration:** Use the default duration for the sport to calculate the end time of each match.
-8.  **Schedule All Matches**: You must provide a valid venue, startTime, and endTime for every match provided in the input. A 'TBD' team ID is a valid placeholder and should be scheduled.
-
 **FORMAT-SPECIFIC CONSTRAINTS:**
-
 *   **If Event Format is 'knockout':**
     *   **Round Progression:** All matches from a previous round must finish before any match from the next round can begin. You will only be asked to schedule one round at a time.
     *   **Rest Day:** There must be at least ONE FULL DAY of rest between the final match of one round and the first match of the next. For example, if Round 1 finishes on Monday, Round 2 cannot start before Wednesday morning.
@@ -94,8 +105,12 @@ const prompt = ai.definePrompt({
 *   **If Event Format is 'round-robin':**
     *   **One Match Per Team Per Day:** A team **CANNOT** play more than one match on the same calendar day. You are provided with a list of all teams in the 'teams' input field to help enforce this.
 
-**Failure Condition:**
-If you cannot generate a valid schedule that respects all of these rules (e.g., not enough time slots, venue conflicts, team daily match limit, player availability conflicts), you MUST return an empty 'optimizedMatches' array and provide a clear 'reasoning' explaining exactly which constraint could not be met.
+---
+
+**CRITICAL FAILURE CONDITION:**
+If you cannot generate a valid schedule that respects **ALL** of these rules (especially the **NO PLAYER CONFLICTS** rule), you **MUST** return an empty 'optimizedMatches' array and provide a clear 'reasoning' explaining exactly which constraint (e.g., "Player conflict for player 'player_id_xyz'") could not be met.
+
+---
 
 **INPUT DATA:**
 Event ID: {{{eventId}}}
@@ -117,7 +132,7 @@ Sports Data:
 {{/each}}
 
 {{#if teams}}
-All Team IDs: {{{teams}}}
+All Team IDs for this event: {{{teams}}}
 {{/if}}
 
 Team Rosters (for this event):
