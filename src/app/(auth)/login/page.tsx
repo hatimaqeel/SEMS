@@ -198,7 +198,7 @@ export default function LoginPage() {
                 <Label htmlFor="password">Password</Label>
                 {!isAdminLogin && (
                   <Link
-                    href="#"
+                    href="/forgot-password"
                     className="ml-auto inline-block text-sm underline"
                   >
                     Forgot your password?
