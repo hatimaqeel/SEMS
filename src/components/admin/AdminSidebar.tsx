@@ -23,6 +23,7 @@ import {
   LogOut,
   Building,
   Megaphone,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
@@ -31,6 +32,7 @@ const mainNavItems = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/announcements", icon: Megaphone, label: "Announcements" },
   { href: "/admin/events", icon: Calendar, label: "Manage Events" },
+  { href: "/admin/registrations", icon: UserCheck, label: "Manage Registrations" },
   { href: "/admin/sports", icon: Trophy, label: "Manage Sports" },
   { href: "/admin/venues", icon: MapPin, label: "Manage Venues" },
   { href: "/admin/users", icon: Users, label: "Manage Users" },
