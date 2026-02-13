@@ -90,7 +90,7 @@ You will be provided with the following data:
 Your primary task is to determine if scheduling the given matches is possible without any player being booked for two matches at the same time. You will iterate through all possible time slots for the matches and check for player availability.
 
 // CRITICAL FAILURE CONDITION: CONFLICT DETECTED
-If you find that it is impossible to schedule the matches without at least one player having a time conflict with their existing \`Player Commitments\`, you MUST immediately stop and perform the following actions:
+If you find that it is impossible to schedule the given matches without at least one player having a time conflict with their existing \`Player Commitments\`, you MUST immediately stop and perform the following actions:
 1.  **Return an empty \`optimizedMatches\` array.**
 2.  **In the \`reasoning\` field, state the specific conflict.** Use the \`playerDetails\` and \`teamDetails\` maps to look up and provide the full names. For example: "Scheduling failed due to a time conflict. Player 'Jane Doe' (on team 'SE Gladiators') has an unavoidable time conflict at 11:00 AM on 2024-10-26 due to an existing commitment. Please resolve this manually to proceed."
 3.  **DO NOT return a partial or invalid schedule. DO NOT try to find an alternative time.** Your job is to report the first conflict you find and stop.
