@@ -47,6 +47,8 @@ const OptimizeScheduleWithAIInputSchema = z.object({
     startTime: z.string().describe("The start time of the player's existing commitment."),
     endTime: z.string().describe("The end time of the player's existing commitment."),
   }))).describe("A map of player IDs to their existing scheduled matches across all events."),
+  teamDetails: z.record(z.string(), z.object({ teamName: z.string() })).describe('A map of team IDs to team names.'),
+  playerDetails: z.record(z.string(), z.object({ displayName: z.string() })).describe('A map of player IDs to player display names.'),
 });
 export type OptimizeScheduleWithAIInput = z.infer<typeof OptimizeScheduleWithAIInputSchema>;
 
@@ -79,8 +81,10 @@ You are a meticulous and precise AI scheduling assistant for university sports e
 You will be provided with the following data:
 - Matches to Schedule: A list of matches for the current round.
 - Venue Availability: A list of all venues and their available time slots.
-- Team Rosters: A list of which players belong to which teams in this event.
-- Player Commitments: A master schedule of ALL existing commitments for every player across ALL other events. This is your source of truth for player availability.
+- Team Details: A map of team IDs to team names, for readable output.
+- Player Details: A map of player IDs to player names, for readable output.
+- Team Rosters: A list of which players (by ID) belong to which teams (by ID) in this event.
+- Player Commitments: A master schedule of ALL existing commitments for every player (by ID) across ALL other events. This is your source of truth for player availability.
 
 // PRIMARY OBJECTIVE: CONFLICT DETECTION
 Your primary task is to determine if scheduling the given matches is possible without any player being booked for two matches at the same time. You will iterate through all possible time slots for the matches and check for player availability.
@@ -88,7 +92,7 @@ Your primary task is to determine if scheduling the given matches is possible wi
 // CRITICAL FAILURE CONDITION: CONFLICT DETECTED
 If you find that it is impossible to schedule the matches without at least one player having a time conflict with their existing \`Player Commitments\`, you MUST immediately stop and perform the following actions:
 1.  **Return an empty \`optimizedMatches\` array.**
-2.  **In the \`reasoning\` field, clearly state the specific conflict.** You must identify the player, the match you were trying to schedule, and the conflicting time. For example: "Scheduling failed due to a time conflict. Player 'S1' (on team 'F-Warthog') has an unavoidable time conflict at 9:00 AM due to an existing commitment in another event. Please resolve this manually to proceed."
+2.  **In the \`reasoning\` field, state the specific conflict.** Use the \`playerDetails\` and \`teamDetails\` maps to look up and provide the full names. For example: "Scheduling failed due to a time conflict. Player 'Jane Doe' (on team 'SE Gladiators') has an unavoidable time conflict at 11:00 AM on 2024-10-26 due to an existing commitment. Please resolve this manually to proceed."
 3.  **DO NOT return a partial or invalid schedule. DO NOT try to find an alternative time.** Your job is to report the first conflict you find and stop.
 
 // SUCCESS CONDITION: NO CONFLICTS
@@ -111,6 +115,16 @@ Venue Availability:
 Sports Data:
 {{#each sports}}
 - Sport: {{@key}}, Duration: {{{this.defaultDurationMinutes}}} minutes
+{{/each}}
+
+Team Details (ID to Name):
+{{#each teamDetails}}
+- Team ID: {{@key}}, Name: {{{this.teamName}}}
+{{/each}}
+
+Player Details (ID to Name):
+{{#each playerDetails}}
+- Player ID: {{@key}}, Name: {{{this.displayName}}}
 {{/each}}
 
 Team Rosters (Players per team for this event):
@@ -144,5 +158,3 @@ const optimizeScheduleWithAIFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    

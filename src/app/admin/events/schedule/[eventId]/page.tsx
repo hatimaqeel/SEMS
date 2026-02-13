@@ -253,6 +253,27 @@ export default function SchedulePage() {
         teamRosters[team.teamId] = team.players?.map(p => p.userId) || [];
       }
     }
+    
+    const teamDetails: Record<string, { teamName: string }> = {};
+    const playerDetails: Record<string, { displayName: string }> = {};
+    if (allEvents) {
+      for (const e of allEvents) {
+        if (e.teams) {
+          for (const team of e.teams) {
+            if (!teamDetails[team.teamId]) {
+              teamDetails[team.teamId] = { teamName: team.teamName };
+            }
+            if (team.players) {
+              for (const player of team.players) {
+                if (!playerDetails[player.userId]) {
+                  playerDetails[player.userId] = { displayName: player.displayName };
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
     const playerCommitments: Record<string, { startTime: string; endTime: string }[]> = {};
     if (allEvents) {
@@ -453,6 +474,8 @@ export default function SchedulePage() {
           teams: approvedTeams.map(t => t.teamId),
           teamRosters,
           playerCommitments,
+          teamDetails,
+          playerDetails,
       });
 
       const { optimizedMatches } = result;
