@@ -3,7 +3,7 @@
 
 import { useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection } from 'firebase/firestore';
+import { doc, collection, updateDoc } from 'firebase/firestore';
 import type { Event, Bracket as BracketType, Match, Team, Venue, Sport } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Loader, Calendar, Clock, Trophy } from 'lucide-react';
@@ -37,6 +37,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type BracketMatch = Match & {
   teamA?: Team;
@@ -101,6 +103,9 @@ export default function BracketPage() {
   
   const [selectedMatch, setSelectedMatch] = useState<{match: BracketMatch, winner: Team} | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [scoreA, setScoreA] = useState('');
+  const [scoreB, setScoreB] = useState('');
+
 
   const eventRef = useMemoFirebase(() => doc(firestore, 'events', eventId), [firestore, eventId]);
   const { data: event, isLoading: isLoadingEvent } = useDoc<Event>(eventRef);
@@ -132,6 +137,8 @@ export default function BracketPage() {
       return;
     }
     setSelectedMatch({ match, winner });
+    setScoreA(match.scoreA?.toString() || '');
+    setScoreB(match.scoreB?.toString() || '');
     setIsAlertOpen(true);
   };
   
@@ -141,12 +148,26 @@ export default function BracketPage() {
     const { match, winner } = selectedMatch;
     const eventDocRef = doc(firestore, "events", eventId);
     
+    const parsedScoreA = parseInt(scoreA, 10);
+    const parsedScoreB = parseInt(scoreB, 10);
+
+    if (isNaN(parsedScoreA) || isNaN(parsedScoreB)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Scores',
+        description: 'Please enter valid numbers for the scores.',
+      });
+      return;
+    }
+
     const updatedMatches = event.matches.map(m => ({ ...m }));
 
     const currentMatchIndex = updatedMatches.findIndex(m => m.matchId === match.matchId);
     if (currentMatchIndex !== -1) {
         updatedMatches[currentMatchIndex].winnerTeamId = winner.teamId;
         updatedMatches[currentMatchIndex].status = 'completed';
+        updatedMatches[currentMatchIndex].scoreA = parsedScoreA;
+        updatedMatches[currentMatchIndex].scoreB = parsedScoreB;
     }
 
     if (event.settings.format === 'knockout') {
@@ -337,10 +358,31 @@ export default function BracketPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Winner</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to declare{' '}
-              <span className="font-bold">&quot;{selectedMatch?.winner.teamName}&quot;</span> as the winner of this match? This action cannot be undone.
+              Declare <span className="font-bold">&quot;{selectedMatch?.winner.teamName}&quot;</span> as the winner and enter the final score. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="scoreA">{selectedMatch?.match.teamA?.teamName || 'Team A'}</Label>
+                <Input
+                  id="scoreA"
+                  type="number"
+                  value={scoreA}
+                  onChange={(e) => setScoreA(e.target.value)}
+                  placeholder="Score"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="scoreB">{selectedMatch?.match.teamB?.teamName || 'Team B'}</Label>
+                <Input
+                  id="scoreB"
+                  type="number"
+                  value={scoreB}
+                  onChange={(e) => setScoreB(e.target.value)}
+                  placeholder="Score"
+                />
+              </div>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedMatch(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmWinner}>Confirm Winner</AlertDialogAction>

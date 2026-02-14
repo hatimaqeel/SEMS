@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -35,6 +36,7 @@ interface Standings {
   wins: number;
   losses: number;
   points: number;
+  scoreDifference: number;
 }
 
 export function TeamStandingsWidget() {
@@ -68,6 +70,7 @@ export function TeamStandingsWidget() {
         wins: 0,
         losses: 0,
         points: 0,
+        scoreDifference: 0,
       };
     });
 
@@ -76,23 +79,27 @@ export function TeamStandingsWidget() {
     completedMatches.forEach(match => {
       const winnerId = match.winnerTeamId!;
       const loserId = match.teamAId === winnerId ? match.teamBId : match.teamAId;
+      
+      const scoreWinner = match.teamAId === winnerId ? (match.scoreA || 0) : (match.scoreB || 0);
+      const scoreLoser = match.teamAId === loserId ? (match.scoreA || 0) : (match.scoreB || 0);
 
       if (teamStandings[winnerId]) {
         teamStandings[winnerId].played += 1;
         teamStandings[winnerId].wins += 1;
         teamStandings[winnerId].points += 2; // 2 points for a win
+        teamStandings[winnerId].scoreDifference += (scoreWinner - scoreLoser);
       }
       if (teamStandings[loserId]) {
         teamStandings[loserId].played += 1;
         teamStandings[loserId].losses += 1;
+        teamStandings[loserId].scoreDifference += (scoreLoser - scoreWinner);
       }
     });
 
     return Object.values(teamStandings).sort((a, b) => {
-        if (b.points !== a.points) {
-            return b.points - a.points; // Sort by points
-        }
-        return b.wins - a.wins; // Then by wins
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.scoreDifference !== a.scoreDifference) return b.scoreDifference - a.scoreDifference;
+        return b.wins - a.wins;
     });
   }, [selectedEventId, events]);
 
@@ -139,6 +146,7 @@ export function TeamStandingsWidget() {
                 <TableHead className="text-center">P</TableHead>
                 <TableHead className="text-center">W</TableHead>
                 <TableHead className="text-center">L</TableHead>
+                <TableHead className="text-center">SD</TableHead>
                 <TableHead className="text-right">Pts</TableHead>
               </TableRow>
             </TableHeader>
@@ -150,6 +158,7 @@ export function TeamStandingsWidget() {
                   <TableCell className="text-center">{team.played}</TableCell>
                   <TableCell className="text-center">{team.wins}</TableCell>
                   <TableCell className="text-center">{team.losses}</TableCell>
+                  <TableCell className="text-center">{team.scoreDifference}</TableCell>
                   <TableCell className="text-right font-bold">{team.points}</TableCell>
                 </TableRow>
               ))}
