@@ -171,5 +171,3 @@ export function RecentResultsWidget() {
     </Card>
   );
 }
-
-    

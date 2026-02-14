@@ -15,7 +15,7 @@ import type { Event, Venue, User, Sport } from '@/lib/types';
 import { VictoriesByDepartmentChart } from '@/components/admin/VictoriesByDepartmentChart';
 import { useMemo } from 'react';
 import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
-import { RecentResultsWidget } from '@/components/common/RecentResultsWidget';
+import { TeamStandingsWidget } from '@/components/admin/TeamStandingsWidget';
 import { CalendarWidget } from '@/components/common/CalendarWidget';
 
 export default function DashboardPage() {
@@ -116,7 +116,7 @@ export default function DashboardPage() {
               data={victoriesData}
               isLoading={isLoadingEvents}
             />
-            <RecentResultsWidget />
+            <TeamStandingsWidget />
         </div>
          <div className="lg:col-span-1 space-y-6">
             <CalendarWidget />
