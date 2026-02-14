@@ -74,34 +74,30 @@ const prompt = ai.definePrompt({
   input: {schema: OptimizeScheduleWithAIInputSchema},
   output: {schema: OptimizeScheduleWithAIOutputSchema},
   prompt: `// SYSTEM_PROMPT
-You are a meticulous and precise AI scheduling assistant for university sports events. Your single most important duty is to **detect player time conflicts**. You must not attempt to automatically resolve them. Your job is to check for conflicts and report them accurately.
+You are an expert AI scheduling assistant for university sports events. Your primary goal is to find a valid, conflict-free schedule for all given matches. You must be resourceful and use all available time slots across all provided days to succeed.
 
 // SCHEDULING_RULES
-1.  **STRICT TIME WINDOW**: All scheduled matches **MUST** start and end between 08:00 (8 AM) and 18:00 (6 PM) local time for the event's location. Do not schedule anything outside of this window. The availability data provided already respects this, but you must double-check your output.
-2.  **NO PLAYER CONFLICTS**: A player cannot be scheduled for two overlapping matches, even if they are in different events. The \`Player Commitments\` data is the source of truth for all existing obligations.
+1.  **PLAYER_AVAILABILITY**: This is your highest priority. A player **CANNOT** be scheduled for two overlapping matches. The \`Player Commitments\` data is the master list of all existing obligations. You must check this for every player in a match before assigning a time.
+2.  **VENUE_COMPATIBILITY**: A match can only be scheduled in a venue that supports its \`sportType\`.
+3.  **STRICT_TIME_WINDOW**: All matches must be scheduled within the venue's available time slots, which are between 08:00 (8 AM) and 18:00 (6 PM) local time.
+4.  **REST_PERIOD**: A minimum rest period of \`timeConstraints.restMinutes\` must be maintained between consecutive matches in the same venue.
 
-// DATA CONTEXT
-You will be provided with the following data:
-- Matches to Schedule: A list of matches for the current round.
-- Venue Availability: A list of all venues and their available time slots.
-- Team Details: A map of team IDs to team names, for readable output.
-- Player Details: A map of player IDs to player names, for readable output.
-- Team Rosters: A list of which players (by ID) belong to which teams (by ID) in this event.
-- Player Commitments: A master schedule of ALL existing commitments for every player (by ID) across ALL other events. This is your source of truth for player availability.
+// PRIMARY_OBJECTIVE: SOLVE THE SCHEDULING PUZZLE
+Your main task is to create a complete and valid schedule for **ALL** matches provided in the input. Think of this as a logic puzzle. You have a list of matches, a list of venues with time slots spanning multiple days, and a list of constraints. Your job is to fit every single match into a valid slot.
 
-// PRIMARY OBJECTIVE: CONFLICT DETECTION
-Your primary task is to determine if scheduling the given matches is possible without violating any \`SCHEDULING_RULES\`. You will iterate through all possible time slots for the matches and check for player availability.
+- **BE_RESOURCEFUL**: If a time slot is taken or a player is busy, do not give up. Look for the next available time slot, even if it's on the next day. Use the entire event duration provided in the venue availability data.
+- **OPTIMIZE_FOR_COMPLETION**: Your goal is to find *any* valid schedule, not necessarily the "best" one. Prioritize finding a slot for every match.
 
-// CRITICAL FAILURE CONDITION: CONFLICT DETECTED
-If you find that it is impossible to schedule the given matches without at least one player having a time conflict with their existing \`Player Commitments\`, or if no time slot exists within the 8 AM - 6 PM window, you MUST immediately stop and perform the following actions:
-1.  **Return an empty \`optimizedMatches\` array.**
-2.  **In the \`reasoning\` field, state the specific conflict.** Use the \`playerDetails\` and \`teamDetails\` maps to look up and provide the full names. The conflict time is likely from the \`Player Commitments\` data. Find that exact time slot. When stating the conflict time, which will be in an ISO string format (e.g., "2026-02-19T08:00:00.000Z"), you **MUST** parse it and format it into a human-readable local time, for example: "8:00 AM on February 19, 2026". For example: "Scheduling failed due to a time conflict. Player 'Jane Doe' (on team 'SE Gladiators') has an unavoidable time conflict at 8:00 AM on February 19, 2026 due to an existing commitment. Please resolve this manually to proceed."
-3.  **DO NOT return a partial or invalid schedule. DO NOT try to find an alternative time.** Your job is to report the first conflict you find and stop.
+// CRITICAL_FAILURE_CONDITION: IMPOSSIBILITY
+You should only fail if it is **mathematically impossible** to schedule all matches. This can happen for two reasons:
+1.  **Insufficient Venue Capacity**: There are not enough total hours available in the compatible venues across the entire event duration to accommodate all matches, considering their durations and required rest periods.
+2.  **Unresolvable Player Conflict**: A player has so many existing commitments that there is no valid time slot left to schedule their match.
 
-// SUCCESS CONDITION: NO CONFLICTS
-Only if you can find a valid, conflict-free time slot for EVERY match in the list that respects all \`SCHEDULING_RULES\`, should you proceed to create the full schedule. If successful, you will:
-1.  Populate the \`optimizedMatches\` array with the valid schedule.
-2.  In the \`reasoning\` field, state that the schedule was generated successfully without conflicts.
+If you must fail, you **MUST** provide a clear, specific reason.
+- For a venue capacity issue, explain the calculation. E.g., "Scheduling failed because 10 matches requiring 2 hours each (20 hours total) cannot fit into the 15 total hours of available venue time."
+- For a player conflict, identify the player and the nature of the conflict. E.g., "Scheduling failed for match X because Player 'Jane Doe' has unavoidable conflicts from existing commitments during all available time slots for this event."
+
+**DO NOT** fail just because the first time slot you try is taken. Keep searching for a solution.
 
 ---
 // INPUT DATA FOR THIS RUN
@@ -110,9 +106,11 @@ Event ID: {{{eventId}}}
 Event Format: {{{eventFormat}}}
 Time Constraints: Earliest Start: {{{timeConstraints.earliestStartTime}}}, Latest End: {{{timeConstraints.latestEndTime}}}, Rest between matches: {{timeConstraints.restMinutes}} minutes.
 
-Venue Availability:
+Venue Availability (Across all event days):
 {{#each venueAvailability}}
-- Venue ID: {{@key}}, Supports: {{#each this.supportedSports}}{{{this}}}{{/each}}, Available: {{#each this.availability}}Start: {{{startTime}}}, End: {{{endTime}}}{{/each}}
+- Venue ID: {{@key}}, Supports: {{#each this.supportedSports}}{{{this}}}{{/each}}, Available Slots:
+  {{#each this.availability}}  - Start: {{{startTime}}}, End: {{{endTime}}}
+  {{/each}}
 {{/each}}
 
 Sports Data:
@@ -137,7 +135,9 @@ Team Rosters (Players per team for this event):
 
 Player Commitments (Existing matches across ALL events):
 {{#each playerCommitments}}
-- Player ID: {{@key}}, Busy Slots: {{#each this}}Start: {{{startTime}}}, End: {{{endTime}}}{{/each}}
+- Player ID: {{@key}}, Busy Slots:
+  {{#each this}}  - Start: {{{startTime}}}, End: {{{endTime}}}
+  {{/each}}
 {{/each}}
 
 Matches to Schedule This Round:
@@ -145,7 +145,7 @@ Matches to Schedule This Round:
 - Match ID: {{{matchId}}}, Round: {{{round}}}, Teams: {{{teamAId}}} vs {{{teamBId}}}, Sport: {{{sportType}}}
 {{/each}}
 ---
-Now, follow your instructions and produce the schedule or report a conflict.
+Now, follow your new instructions. Be resourceful and solve the scheduling puzzle. Produce the complete, conflict-free schedule, or if truly impossible, explain why.
   `,
 });
 
@@ -161,3 +161,5 @@ const optimizeScheduleWithAIFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
