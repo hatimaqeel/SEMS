@@ -3,7 +3,7 @@
 
 import { useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, updateDoc, collection } from 'firebase/firestore';
+import { doc, collection } from 'firebase/firestore';
 import type { Event, Bracket as BracketType, Match, Team, Venue, Sport } from '@/lib/types';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Loader, Calendar, Clock, Trophy } from 'lucide-react';
@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type BracketMatch = Match & {
   teamA?: Team;
@@ -134,8 +135,8 @@ export default function BracketPage() {
     setIsAlertOpen(true);
   };
   
-  const confirmWinner = async () => {
-    if (!selectedMatch || !event || !bracket) return;
+  const confirmWinner = () => {
+    if (!selectedMatch || !event) return;
 
     const { match, winner } = selectedMatch;
     const eventDocRef = doc(firestore, "events", eventId);
@@ -149,6 +150,17 @@ export default function BracketPage() {
     }
 
     if (event.settings.format === 'knockout') {
+        if (!bracket) {
+            toast({
+                variant: 'destructive',
+                title: 'Bracket Data Missing',
+                description: 'Cannot advance winner because bracket data is not available for this knockout event.'
+            });
+            setIsAlertOpen(false);
+            setSelectedMatch(null);
+            return;
+        }
+        
         const currentRound = bracket.rounds.find(r => r.matches.includes(match.matchId));
         
         if (currentRound && currentRound.roundName !== 'Final') {
@@ -169,22 +181,14 @@ export default function BracketPage() {
         }
     }
     
-    try {
-        await updateDoc(eventDocRef, { matches: updatedMatches });
-        toast({
-            title: "Winner Declared",
-            description: `${winner.teamName} wins.`
-        });
-    } catch (e: any) {
-        toast({
-            variant: "destructive",
-            title: "Error updating match",
-            description: e.message
-        });
-    } finally {
-        setIsAlertOpen(false);
-        setSelectedMatch(null);
-    }
+    setDocumentNonBlocking(eventDocRef, { matches: updatedMatches }, { merge: true });
+    toast({
+        title: "Winner Declared",
+        description: `${winner.teamName} wins.`
+    });
+    
+    setIsAlertOpen(false);
+    setSelectedMatch(null);
   };
 
   const isLoading = isLoadingEvent || isLoadingBracket || isLoadingVenues || isLoadingSports;
@@ -273,44 +277,48 @@ export default function BracketPage() {
               </TableHeader>
               <TableBody>
                 {event.matches.length > 0 ? (
-                  event.matches.map(match => (
-                    <TableRow key={match.matchId}>
-                      <TableCell>{match.round}</TableCell>
-                      <TableCell className="font-medium">
-                        {getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}
-                      </TableCell>
-                      <TableCell>
-                        {match.winnerTeamId ? (
-                           <div className="flex items-center gap-2">
-                             <Trophy className="h-4 w-4 text-yellow-500" />
-                             <span className="font-semibold">{getTeamName(match.winnerTeamId)}</span>
-                           </div>
-                        ) : (
-                          'TBD'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {match.status !== 'completed' && match.teamAId !== 'TBD' && match.teamBId !== 'TBD' && (
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSelectWinner(match as BracketMatch, getTeamById(match.teamAId)!)}
-                            >
-                              {getTeamName(match.teamAId)} Wins
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSelectWinner(match as BracketMatch, getTeamById(match.teamBId)!)}
-                            >
-                              {getTeamName(match.teamBId)} Wins
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  event.matches.map(match => {
+                    const teamA = getTeamById(match.teamAId);
+                    const teamB = getTeamById(match.teamBId);
+                    return (
+                        <TableRow key={match.matchId}>
+                        <TableCell>{match.round}</TableCell>
+                        <TableCell className="font-medium">
+                            {teamA?.teamName || 'TBD'} vs {teamB?.teamName || 'TBD'}
+                        </TableCell>
+                        <TableCell>
+                            {match.winnerTeamId ? (
+                            <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-yellow-500" />
+                                <span className="font-semibold">{getTeamName(match.winnerTeamId)}</span>
+                            </div>
+                            ) : (
+                            'TBD'
+                            )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            {match.status !== 'completed' && teamA && teamB && (
+                            <div className="flex gap-2 justify-end">
+                                <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSelectWinner(match as BracketMatch, teamA)}
+                                >
+                                {teamA.teamName} Wins
+                                </Button>
+                                <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSelectWinner(match as BracketMatch, teamB)}
+                                >
+                                {teamB.teamName} Wins
+                                </Button>
+                            </div>
+                            )}
+                        </TableCell>
+                        </TableRow>
+                    )
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
