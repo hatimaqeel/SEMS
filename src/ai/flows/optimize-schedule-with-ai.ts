@@ -99,6 +99,7 @@ You should only fail if it is **mathematically impossible** to schedule all matc
 If you must fail, you **MUST** provide a clear, specific reason.
 - For a venue capacity issue, explain the calculation. E.g., "Scheduling failed because 10 matches requiring 2 hours each (20 hours total) cannot fit into the 15 total hours of available venue time."
 - For a player conflict, identify the player and the nature of the conflict. E.g., "Scheduling failed for match X because Player 'Jane Doe' has unavoidable conflicts from existing commitments during all available time slots for this event."
+- For an insufficient days issue, state the problem clearly. E.g., "Scheduling failed because a 5-team round-robin tournament requires 4 rounds (4 days), but the event duration is only 3 days. Please increase the event duration."
 
 **DO NOT** fail just because the first time slot you try is taken. Keep searching for a solution.
 
@@ -164,3 +165,5 @@ const optimizeScheduleWithAIFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
