@@ -91,15 +91,20 @@ Your main task is to create a complete and valid schedule for **ALL** matches pr
 - **OPTIMIZE_FOR_COMPLETION**: Your goal is to find *any* valid schedule, not necessarily the "best" one. Prioritize finding a slot for every match.
 
 // CRITICAL_FAILURE_CONDITION: IMPOSSIBILITY
-You should only fail if it is **mathematically impossible** to schedule all matches. This can happen for three reasons:
-1.  **Insufficient Venue Capacity**: There are not enough total hours available in the compatible venues across the entire event duration to accommodate all matches, considering their durations and required rest periods.
-2.  **Unresolvable Player Conflict**: A player has so many existing commitments that there is no valid time slot left to schedule their match.
-3.  **Insufficient Days for Matches**: The number of days available for the event is less than the number of rounds required for a team to play all its matches (respecting the one-match-per-day rule).
+You should only fail if it is **mathematically impossible** to schedule all matches.
 
-If you must fail, you **MUST** provide a clear, specific reason.
-- For a venue capacity issue, explain the calculation. E.g., "Scheduling failed because 10 matches requiring 2 hours each (20 hours total) cannot fit into the 15 total hours of available venue time."
-- For a player conflict, identify the player and the nature of the conflict. E.g., "Scheduling failed for match X because Player 'Jane Doe' has unavoidable conflicts from existing commitments during all available time slots for this event."
-- For an insufficient days issue, state the problem clearly. E.g., "Scheduling failed because a 5-team round-robin tournament requires 4 rounds (4 days), but the event duration is only 3 days. Please increase the event duration."
+If you must fail, you **MUST** provide a simple, clear, and actionable reason for the user. Do not show raw calculations or technical IDs. Focus on explaining the problem and providing a solution.
+
+Here are the reasons you might fail and how to report them:
+
+1.  **Insufficient Venue Capacity**: This happens when there aren't enough total time slots available across all days and all venues for all the matches.
+    *   **Example Failure Message**: "Scheduling failed because there isn't enough time to play all matches. This event requires 10 matches, but with the current settings, there is only capacity for 8 matches over the event's 2-day duration. **To fix this, please increase the event's duration (in days) or add more venues compatible with this sport.**"
+
+2.  **Unresolvable Player Conflict**: This happens when a specific player is already busy with other matches and has no free time left. The conflict time should be displayed in a user friendly format like '11:00 AM on October 26, 2024'.
+    *   **Example Failure Message**: "Scheduling failed because player 'Jane Doe' (from team 'CS Warriors') has an unavoidable time conflict with another event at 10:00 AM on February 19, 2026. **To fix this, please resolve the player's external commitments manually.**"
+
+3.  **Insufficient Days for Matches**: This happens when the "one match per day" rule cannot be met because the event duration is too short.
+    *   **Example Failure Message**: "Scheduling failed because the event duration is too short. This tournament requires 4 separate days to be played fairly (due to the 'one match per day' rule), but the event is only set for a 2-day duration. **To fix this, please increase the event duration to at least 4 days.**"
 
 **DO NOT** fail just because the first time slot you try is taken. Keep searching for a solution.
 
