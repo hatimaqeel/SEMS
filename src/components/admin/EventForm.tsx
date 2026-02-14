@@ -63,6 +63,7 @@ const createFormSchema = (schedulingWindowMonths: number) => z.object({
     const [hours] = time.split(':').map(Number);
     return hours >= 8 && hours < 18;
   }, 'Start time must be between 8:00 AM and 6:00 PM.'),
+  durationDays: z.coerce.number().int().min(1, "Duration must be at least 1 day.").max(30, "Duration cannot exceed 30 days."),
   description: z.string().min(10, 'Description must be at least 10 characters.').max(200, 'Description cannot exceed 200 characters.'),
   format: z.enum(['knockout', 'round-robin'], { required_error: 'Please select a tournament format.'}),
 });
@@ -100,6 +101,7 @@ export function EventForm({
       ? {
           ...initialData,
           startDate: new Date(initialData.startDate),
+          durationDays: initialData.durationDays || 1,
           format: initialData.settings.format,
           department: (Array.isArray(initialData.department) ? initialData.department : [initialData.department]).map(deptName => {
             return departments.find(d => d.name === deptName)?.id || deptName;
@@ -111,6 +113,7 @@ export function EventForm({
           department: [],
           startDate: undefined,
           startTime: '',
+          durationDays: 1,
           description: '',
           format: 'knockout',
         },
@@ -221,7 +224,7 @@ export function EventForm({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <FormField
             control={form.control}
             name="startDate"
@@ -275,6 +278,19 @@ export function EventForm({
                         <FormLabel>Time</FormLabel>
                         <FormControl>
                            <Input type="time" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="durationDays"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Duration (days)</FormLabel>
+                        <FormControl>
+                           <Input type="number" min="1" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>

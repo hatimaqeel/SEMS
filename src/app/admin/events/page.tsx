@@ -118,7 +118,7 @@ export default function EventsPage() {
       startTime: values.startTime,
       description: values.description,
       status: 'upcoming' as const,
-      durationDays: 1, // Default value, can be expanded later
+      durationDays: values.durationDays,
       settings: { 
         format: values.format,
         restMinutes: 30, 
