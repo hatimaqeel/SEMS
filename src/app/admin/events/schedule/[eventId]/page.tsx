@@ -27,7 +27,7 @@ function generateRoundRobinAllRounds(teams: Team[]): { round: number, pairs: { t
     let participants = [...teams];
     // If odd number of teams, add a dummy "bye" team
     if (participants.length % 2 !== 0) {
-        participants.push({ teamId: 'BYE', teamName: 'BYE', department: '', players: [], sportType: '' });
+        participants.push({ teamId: 'BYE', teamName: 'BYE', department: '', players: [], sportType: '', status: 'approved' });
     }
 
     const n = participants.length;
@@ -308,16 +308,7 @@ export default function SchedulePage() {
         // --- Round Robin Initial Generation ---
         if (event.settings.format === 'round-robin') {
             const allRounds = generateRoundRobinAllRounds(approvedTeams);
-            const firstRound = allRounds[0];
             
-            aiInputMatches = firstRound.pairs.map((pair, index) => ({
-                matchId: `m${Date.now()}-${index}`,
-                ...pair,
-                sportType: event.sportType,
-                round: 1,
-            }));
-
-            // Create placeholder matches for all subsequent rounds
             finalMatches = allRounds.flatMap(roundData => {
                 return roundData.pairs.map(pair => ({
                     matchId: `m${Date.now()}-${matchCounter++}`,
@@ -332,6 +323,14 @@ export default function SchedulePage() {
                     winnerTeamId: '',
                 }))
             });
+
+            aiInputMatches = finalMatches.map(m => ({
+                matchId: m.matchId,
+                round: m.round,
+                teamAId: m.teamAId,
+                teamBId: m.teamBId,
+                sportType: m.sportType,
+            }));
 
         } else { // --- Knockout Initial Generation ---
             const newBracket: Bracket = { id: eventId, rounds: [] };
@@ -538,7 +537,7 @@ export default function SchedulePage() {
   let nextRoundToSchedule: number | null = null;
   let showNextRoundButton = false;
 
-  if (event.matches && event.matches.length > 0) {
+  if (event.settings.format === 'knockout' && event.matches && event.matches.length > 0) {
       const scheduledRounds = [...new Set(event.matches.filter(m => m.status === 'scheduled' || m.status === 'completed').map(m => m.round))];
       const highestScheduledRound = scheduledRounds.length > 0 ? Math.max(...scheduledRounds) : 0;
       
