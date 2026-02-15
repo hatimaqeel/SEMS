@@ -170,6 +170,7 @@ export default function SchedulePage() {
     const conflict = event.matches.find(m => {
         if (m.matchId === selectedMatch.matchId) return false;
         if (m.venueId !== editVenue) return false;
+        if (!m.startTime) return false;
 
         const existingStart = new Date(m.startTime).getTime();
         const existingEnd = new Date(m.endTime).getTime();
