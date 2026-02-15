@@ -16,6 +16,7 @@ import { VictoriesByDepartmentChart } from '@/components/admin/VictoriesByDepart
 import { useMemo } from 'react';
 import { UpcomingMatchesWidget } from '@/components/common/UpcomingMatchesWidget';
 import { CalendarWidget } from '@/components/common/CalendarWidget';
+import { TeamStandingsWidget } from '@/components/admin/TeamStandingsWidget';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -115,6 +116,7 @@ export default function DashboardPage() {
               data={victoriesData}
               isLoading={isLoadingEvents}
             />
+            <TeamStandingsWidget />
         </div>
          <div className="lg:col-span-1 space-y-6">
             <CalendarWidget />
