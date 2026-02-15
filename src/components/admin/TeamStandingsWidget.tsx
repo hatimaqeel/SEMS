@@ -3,7 +3,7 @@
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Event, Team } from '@/lib/types';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -39,15 +39,25 @@ interface Standings {
   scoreDifference: number;
 }
 
-export function TeamStandingsWidget() {
+interface TeamStandingsWidgetProps {
+  eventId?: string;
+}
+
+export function TeamStandingsWidget({ eventId }: TeamStandingsWidgetProps) {
   const firestore = useFirestore();
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(eventId || null);
 
   const eventsRef = useMemoFirebase(
     () => collection(firestore, 'events'),
     [firestore]
   );
   const { data: events, isLoading: isLoadingEvents } = useCollection<Event>(eventsRef);
+
+  useEffect(() => {
+    if (eventId) {
+      setSelectedEventId(eventId);
+    }
+  }, [eventId]);
 
   const roundRobinEvents = useMemo(() => {
     return events?.filter(e => e.settings.format === 'round-robin' && e.matches.length > 0) || [];
@@ -103,12 +113,11 @@ export function TeamStandingsWidget() {
     });
   }, [selectedEventId, events]);
 
-  // Effect to handle case where events load after initial render
-  useMemo(() => {
-    if (roundRobinEvents.length > 0 && !selectedEventId) {
+  useEffect(() => {
+    if (!eventId && roundRobinEvents.length > 0 && !selectedEventId) {
       setSelectedEventId(roundRobinEvents[0].id!);
     }
-  }, [roundRobinEvents, selectedEventId]);
+  }, [roundRobinEvents, selectedEventId, eventId]);
 
   const allMatchesPlayed = useMemo(() => {
     if (!selectedEventId || !events) return false;
@@ -123,7 +132,7 @@ export function TeamStandingsWidget() {
         <CardDescription>
           View the points table for round-robin events. The team with the most points wins.
         </CardDescription>
-        {roundRobinEvents.length > 0 && (
+        {!eventId && roundRobinEvents.length > 0 && (
            <Select onValueChange={setSelectedEventId} value={selectedEventId || ''}>
               <SelectTrigger className="w-full md:w-[280px] mt-4">
                 <SelectValue placeholder="Select an event" />

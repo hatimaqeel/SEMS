@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -27,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useState }from 'react';
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -39,6 +38,7 @@ import {
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TeamStandingsWidget } from '@/components/admin/TeamStandingsWidget';
 
 type BracketMatch = Match & {
   teamA?: Team;
@@ -253,105 +253,118 @@ export default function BracketPage() {
         description={event.settings.format === 'knockout' ? "Declare winners to automatically advance them to the next round." : "Declare winners for each match in this round-robin tournament."}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tournament Matches</CardTitle>
-          <CardDescription>
-            {event.settings.format === 'knockout' ? "Click 'Win' to set a match winner. The winner will move to the next round." : "Click on a team's name to declare them the winner of the match."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4">
-          {event.settings.format === 'knockout' && bracket ? (
-            <div className="overflow-x-auto pb-4">
-              <div className="flex items-start justify-start gap-12 p-4 min-w-max">
-                {bracket.rounds.map(round => {
-                   const roundMatches = round.matches.map(matchId => {
-                        const matchData = event.matches.find(m => m.matchId === matchId);
-                        if(!matchData) return null;
-                        return {
-                          ...matchData,
-                          teamA: getTeamById(matchData.teamAId),
-                          teamB: getTeamById(matchData.teamBId),
-                        } as BracketMatch;
-                    }).filter((m): m is BracketMatch => m !== null);
+      {event.settings.format === 'knockout' ? (
+         <Card>
+            <CardHeader>
+            <CardTitle>Tournament Bracket</CardTitle>
+            <CardDescription>
+                Click 'Win' to set a match winner. The winner will move to the next round.
+            </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+                <div className="overflow-x-auto pb-4">
+                <div className="flex items-start justify-start gap-12 p-4 min-w-max">
+                    {bracket && bracket.rounds.map(round => {
+                    const roundMatches = round.matches.map(matchId => {
+                            const matchData = event.matches.find(m => m.matchId === matchId);
+                            if(!matchData) return null;
+                            return {
+                            ...matchData,
+                            teamA: getTeamById(matchData.teamAId),
+                            teamB: getTeamById(matchData.teamBId),
+                            } as BracketMatch;
+                        }).filter((m): m is BracketMatch => m !== null);
 
-                  return(
-                    <BracketRound 
-                        key={round.roundIndex}
-                        roundName={round.roundName}
-                        matches={roundMatches}
-                        onSelectWinner={handleSelectWinner}
-                    />
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Round</TableHead>
-                  <TableHead>Match</TableHead>
-                  <TableHead>Winner</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {event.matches.length > 0 ? (
-                  event.matches.map(match => {
-                    const teamA = getTeamById(match.teamAId);
-                    const teamB = getTeamById(match.teamBId);
-                    return (
-                        <TableRow key={match.matchId}>
-                        <TableCell>{match.round}</TableCell>
-                        <TableCell className="font-medium">
-                            {teamA?.teamName || 'TBD'} vs {teamB?.teamName || 'TBD'}
-                        </TableCell>
-                        <TableCell>
-                            {match.winnerTeamId ? (
-                            <div className="flex items-center gap-2">
-                                <Trophy className="h-4 w-4 text-yellow-500" />
-                                <span className="font-semibold">{getTeamName(match.winnerTeamId)}</span>
-                            </div>
-                            ) : (
-                            'TBD'
-                            )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                            {match.status !== 'completed' && teamA && teamB && (
-                            <div className="flex gap-2 justify-end">
-                                <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSelectWinner(match as BracketMatch, teamA)}
-                                >
-                                {teamA.teamName} Wins
-                                </Button>
-                                <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSelectWinner(match as BracketMatch, teamB)}
-                                >
-                                {teamB.teamName} Wins
-                                </Button>
-                            </div>
-                            )}
-                        </TableCell>
-                        </TableRow>
+                    return(
+                        <BracketRound 
+                            key={round.roundIndex}
+                            roundName={round.roundName}
+                            matches={roundMatches}
+                            onSelectWinner={handleSelectWinner}
+                        />
                     )
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      No matches scheduled for this event yet.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                    })}
+                </div>
+                </div>
+            </CardContent>
+         </Card>
+      ) : (
+        <>
+            <Card>
+                <CardHeader>
+                <CardTitle>Match Results</CardTitle>
+                <CardDescription>
+                    Click on a team's name to declare them the winner of the match.
+                </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Round</TableHead>
+                        <TableHead>Match</TableHead>
+                        <TableHead>Winner</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {event.matches.length > 0 ? (
+                        event.matches.map(match => {
+                            const teamA = getTeamById(match.teamAId);
+                            const teamB = getTeamById(match.teamBId);
+                            return (
+                                <TableRow key={match.matchId}>
+                                <TableCell>{match.round}</TableCell>
+                                <TableCell className="font-medium">
+                                    {teamA?.teamName || 'TBD'} vs {teamB?.teamName || 'TBD'}
+                                </TableCell>
+                                <TableCell>
+                                    {match.winnerTeamId ? (
+                                    <div className="flex items-center gap-2">
+                                        <Trophy className="h-4 w-4 text-yellow-500" />
+                                        <span className="font-semibold">{getTeamName(match.winnerTeamId)}</span>
+                                    </div>
+                                    ) : (
+                                    'TBD'
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {match.status !== 'completed' && teamA && teamB && (
+                                    <div className="flex gap-2 justify-end">
+                                        <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleSelectWinner(match as BracketMatch, teamA)}
+                                        >
+                                        {teamA.teamName} Wins
+                                        </Button>
+                                        <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleSelectWinner(match as BracketMatch, teamB)}
+                                        >
+                                        {teamB.teamName} Wins
+                                        </Button>
+                                    </div>
+                                    )}
+                                </TableCell>
+                                </TableRow>
+                            )
+                        })
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={4} className="h-24 text-center">
+                            No matches scheduled for this event yet.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+            <TeamStandingsWidget eventId={eventId} />
+        </>
+      )}
       
        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
