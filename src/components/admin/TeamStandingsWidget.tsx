@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -27,7 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader } from 'lucide-react';
+import { Loader, Crown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Standings {
   teamId: string;
@@ -110,6 +110,12 @@ export function TeamStandingsWidget() {
     }
   }, [roundRobinEvents, selectedEventId]);
 
+  const allMatchesPlayed = useMemo(() => {
+    if (!selectedEventId || !events) return false;
+    const event = events.find(e => e.id === selectedEventId);
+    return event && event.matches.length > 0 && event.matches.every(m => m.status === 'completed');
+  }, [selectedEventId, events]);
+
   return (
     <Card>
       <CardHeader>
@@ -151,17 +157,25 @@ export function TeamStandingsWidget() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {standings.map((team, index) => (
-                <TableRow key={team.teamId}>
-                  <TableCell className="font-medium">{index + 1}</TableCell>
-                  <TableCell>{team.teamName}</TableCell>
-                  <TableCell className="text-center">{team.played}</TableCell>
-                  <TableCell className="text-center">{team.wins}</TableCell>
-                  <TableCell className="text-center">{team.losses}</TableCell>
-                  <TableCell className="text-center">{team.scoreDifference}</TableCell>
-                  <TableCell className="text-right font-bold">{team.points}</TableCell>
-                </TableRow>
-              ))}
+              {standings.map((team, index) => {
+                const isWinner = index === 0 && allMatchesPlayed && team.played > 0;
+                return (
+                  <TableRow key={team.teamId} className={cn(isWinner && 'bg-yellow-400/20')}>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                         {isWinner && <Crown className="h-5 w-5 text-yellow-500" />}
+                         <span className={cn(isWinner && 'font-bold')}>{team.teamName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">{team.played}</TableCell>
+                    <TableCell className="text-center">{team.wins}</TableCell>
+                    <TableCell className="text-center">{team.losses}</TableCell>
+                    <TableCell className="text-center">{team.scoreDifference}</TableCell>
+                    <TableCell className="text-right font-bold">{team.points}</TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         ) : (
