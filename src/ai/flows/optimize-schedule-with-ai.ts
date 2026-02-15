@@ -42,6 +42,10 @@ const OptimizeScheduleWithAIInputSchema = z.object({
     defaultDurationMinutes: z.number().describe('The default duration of a match for this sport.'),
   })).describe('A map of sport types to their default durations.'),
   teams: z.array(z.string()).optional().describe('A list of all team IDs participating in the event. Used for round-robin validation.'),
+  venueBookings: z.record(z.string(), z.array(z.object({
+    startTime: z.string().describe("The start time of an existing booking."),
+    endTime: z.string().describe("The end time of an existing booking."),
+  }))).optional().describe("A map of venue IDs to their existing booked time slots across all events."),
   teamRosters: z.record(z.string(), z.array(z.string())).describe('A map of team IDs to an array of player IDs on that team.'),
   playerCommitments: z.record(z.string(), z.array(z.object({
     startTime: z.string().describe("The start time of the player's existing commitment."),
@@ -78,10 +82,11 @@ You are an expert AI scheduling assistant for university sports events. Your pri
 
 // SCHEDULING_RULES
 1.  **PLAYER_AVAILABILITY**: This is your highest priority. A player **CANNOT** be scheduled for two overlapping matches. The \`Player Commitments\` data is the master list of all existing obligations. You must check this for every player in a match before assigning a time.
-2.  **ONE_MATCH_PER_DAY**: This is a strict rule. A team can play at most **one match per day** for this event. After scheduling a match for a team on a specific day, do not schedule another match for that same team on that same day. You must use the next available day if necessary.
-3.  **VENUE_COMPATIBILITY**: A match can only be scheduled in a venue that supports its \`sportType\`.
-4.  **STRICT_TIME_WINDOW**: All matches must be scheduled within the venue's available time slots, which are between 08:00 (8 AM) and 18:00 (6 PM) local time.
-5.  **REST_PERIOD**: A minimum rest period of \`timeConstraints.restMinutes\` must be maintained between consecutive matches in the same venue.
+2.  **VENUE_AVAILABILITY**: A venue **CANNOT** be scheduled for two overlapping matches, even if they are from different events. The \`Venue Bookings\` data is the master list of all existing reservations. You must check this for every venue before assigning a time slot.
+3.  **ONE_MATCH_PER_DAY**: This is a strict rule. A team can play at most **one match per day** for this event. After scheduling a match for a team on a specific day, do not schedule another match for that same team on that same day. You must use the next available day if necessary.
+4.  **VENUE_COMPATIBILITY**: A match can only be scheduled in a venue that supports its \`sportType\`.
+5.  **STRICT_TIME_WINDOW**: All matches must be scheduled within the venue's available time slots, which are between 08:00 (8 AM) and 18:00 (6 PM) local time.
+6.  **REST_PERIOD**: A minimum rest period of \`timeConstraints.restMinutes\` must be maintained between consecutive matches in the same venue.
 
 
 // PRIMARY_OBJECTIVE: SOLVE THE SCHEDULING PUZZLE
@@ -121,6 +126,15 @@ Venue Availability (Across all event days):
   {{#each this.availability}}  - Start: {{{startTime}}}, End: {{{endTime}}}
   {{/each}}
 {{/each}}
+
+Existing Venue Bookings (Across all events):
+{{#if venueBookings}}
+{{#each venueBookings}}
+- Venue ID: {{@key}}, Busy Slots:
+  {{#each this}}  - Start: {{{startTime}}}, End: {{{endTime}}}
+  {{/each}}
+{{/each}}
+{{/if}}
 
 Sports Data:
 {{#each sports}}

@@ -277,6 +277,7 @@ export default function SchedulePage() {
     }
 
     const playerCommitments: Record<string, { startTime: string; endTime: string }[]> = {};
+    const venueBookings: Record<string, { startTime: string; endTime: string }[]> = {};
     if (allEvents) {
       for (const e of allEvents) {
         if (!e.matches || !e.teams) continue;
@@ -294,6 +295,16 @@ export default function SchedulePage() {
                 startTime: match.startTime,
                 endTime: match.endTime,
               });
+            }
+            
+            if (match.venueId) {
+                if (!venueBookings[match.venueId]) {
+                    venueBookings[match.venueId] = [];
+                }
+                venueBookings[match.venueId].push({
+                    startTime: match.startTime,
+                    endTime: match.endTime,
+                });
             }
           }
         }
@@ -472,6 +483,7 @@ export default function SchedulePage() {
           matches: aiInputMatches,
           sports: sportsData,
           teams: approvedTeams.map(t => t.teamId),
+          venueBookings,
           teamRosters,
           playerCommitments,
           teamDetails,
