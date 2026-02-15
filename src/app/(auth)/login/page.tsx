@@ -1,8 +1,8 @@
-'use client';
-
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+
+export const dynamic = 'force-dynamic';
 
 const LoginClientPage = dynamic(
   () => import('@/components/auth/LoginClientPage'),
