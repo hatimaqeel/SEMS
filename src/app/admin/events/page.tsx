@@ -51,6 +51,7 @@ import { EventForm, type EventFormValues } from "@/components/admin/EventForm";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { format } from "date-fns";
 
 export default function EventsPage() {
   const router = useRouter();
@@ -114,7 +115,7 @@ export default function EventsPage() {
       name: values.name,
       sportType: values.sportType,
       department: departmentNames,
-      startDate: values.startDate.toISOString().split('T')[0],
+      startDate: format(values.startDate, "yyyy-MM-dd"),
       startTime: values.startTime,
       description: values.description,
       status: 'upcoming' as const,
