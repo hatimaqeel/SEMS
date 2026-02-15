@@ -137,7 +137,7 @@ export default function SchedulePage() {
   
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMatch || !event || !sports) {
+    if (!selectedMatch || !event || !sports || !allEvents) {
       toast({ variant: 'destructive', title: 'Error', description: 'Required data is not available.' });
       return;
     }
@@ -167,10 +167,11 @@ export default function SchedulePage() {
 
     const newEndTime = new Date(newStartTime.getTime() + sportDetails.defaultDurationMinutes * 60000);
 
-    const conflict = event.matches.find(m => {
+    const allMatchesFromAllEvents = allEvents.flatMap(e => e.matches || []);
+    const conflict = allMatchesFromAllEvents.find(m => {
         if (m.matchId === selectedMatch.matchId) return false;
         if (m.venueId !== editVenue) return false;
-        if (!m.startTime) return false;
+        if (m.status !== 'scheduled' || !m.startTime) return false;
 
         const existingStart = new Date(m.startTime).getTime();
         const existingEnd = new Date(m.endTime).getTime();
