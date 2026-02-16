@@ -88,7 +88,7 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     if (!user || !events) {
-      if (!isLoadingEvents) {
+      if (!isUserLoading && !isLoadingEvents) {
         setIsLoadingMyRequests(false);
       }
       return;
@@ -117,7 +117,7 @@ export default function StudentDashboardPage() {
     };
 
     fetchAllRequests();
-  }, [user, events, firestore]);
+  }, [user, events, firestore, isUserLoading, isLoadingEvents]);
 
   const handleRequestToJoin = async (event: Event) => {
     if (!user || !userData) {
@@ -191,11 +191,11 @@ export default function StudentDashboardPage() {
     );
   }
 
-  const upcomingEvents = events?.filter((e) => e.status === 'upcoming') || [];
+  const joinableEvents = events?.filter(e => e.status === 'upcoming' || e.status === 'ongoing') || [];
   
   const myRequestEvents = events?.filter(event => myRequestsByEvent[event.id!]) || [];
   
-  const availableEvents = upcomingEvents.filter(event => {
+  const availableEvents = joinableEvents.filter(event => {
     if (myRequestsByEvent[event.id!]) {
       return false; // Already requested, so not "available"
     }
