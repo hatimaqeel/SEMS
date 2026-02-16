@@ -64,8 +64,8 @@ const OptimizedMatchSchema = z.object({
 });
 
 const OptimizeScheduleWithAIOutputSchema = z.object({
-  optimizedMatches: z.array(OptimizedMatchSchema).describe('A list of matches with their optimized venue and time assignments.'),
-  reasoning: z.string().describe('The AI’s reasoning for the schedule optimization.'),
+  optimizedMatches: z.array(OptimizedMatchSchema).optional().describe('A list of matches with their optimized venue and time assignments. This may be omitted if scheduling is not possible.'),
+  reasoning: z.string().describe('The AI’s reasoning for the schedule optimization, or an explanation of why it failed.'),
 });
 export type OptimizeScheduleWithAIOutput = z.infer<typeof OptimizeScheduleWithAIOutputSchema>;
 
