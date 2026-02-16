@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
@@ -173,18 +172,6 @@ export default function StudentDashboardPage() {
 
   const isLoading = isUserLoading || isUserDataLoading || isLoadingEvents || isLoadingMyRequests || isLoadingAnnouncements || isLoadingVenues;
 
-  const eventDepartments = useMemo(() => {
-    const depts: Record<string, string[]> = {};
-    if (events) {
-        events.forEach(event => {
-            const teamDepts = event.teams?.map(team => team.department) || [];
-            depts[event.id!] = [...new Set(teamDepts)];
-        });
-    }
-    return depts;
-  }, [events]);
-
-
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -206,11 +193,17 @@ export default function StudentDashboardPage() {
 
   const upcomingEvents = events?.filter((e) => e.status === 'upcoming') || [];
   
-  const myRequestEvents = upcomingEvents.filter(event => myRequestsByEvent[event.id!]);
+  const myRequestEvents = events?.filter(event => myRequestsByEvent[event.id!]) || [];
+  
   const availableEvents = upcomingEvents.filter(event => {
-    if (myRequestsByEvent[event.id!]) return false; // Already requested
-    const participatingDepts = eventDepartments[event.id!] || [];
-    return participatingDepts.length === 0 || participatingDepts.includes(userData.dept);
+    if (myRequestsByEvent[event.id!]) {
+      return false; // Already requested, so not "available"
+    }
+    const allowedDepartments = event.department || [];
+    if (allowedDepartments.includes('All Departments')) {
+      return true;
+    }
+    return allowedDepartments.includes(userData.dept);
   });
 
   const getStatusUi = (status: 'pending' | 'approved' | 'rejected') => {
@@ -237,7 +230,7 @@ export default function StudentDashboardPage() {
         return {
           icon: <HelpCircle className="h-5 w-5 text-muted-foreground" />,
           text: 'Unknown',
-          className: 'text-muted-foreground bg-muted',
+          className: 'text-muted bg-muted',
         };
     }
   };
@@ -376,8 +369,8 @@ export default function StudentDashboardPage() {
           {availableEvents.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
               {availableEvents.map((event) => {
-                const participatingDepts = eventDepartments[event.id!] || [];
-                const isStudentDeptInEvent = participatingDepts.length === 0 || participatingDepts.includes(userData.dept);
+                const allowedDepartments = event.department || [];
+                const isStudentDeptInEvent = allowedDepartments.includes('All Departments') || allowedDepartments.includes(userData.dept);
                 
                 return (
                   <Card key={event.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
