@@ -87,7 +87,7 @@ export default function StudentDashboardPage() {
   const [isLoadingMyRequests, setIsLoadingMyRequests] = useState(true);
 
   useEffect(() => {
-    if (!user || !events || events.length === 0) {
+    if (!user || !events) {
       if (!isLoadingEvents) {
         setIsLoadingMyRequests(false);
       }
@@ -117,7 +117,7 @@ export default function StudentDashboardPage() {
     };
 
     fetchAllRequests();
-  }, [user, events, firestore, isLoadingEvents]);
+  }, [user, events, firestore]);
 
   const handleRequestToJoin = async (event: Event) => {
     if (!user || !userData) {
